@@ -1,16 +1,31 @@
 :root {
-    --bg-dark: #0f0f0f;
-    --bg-card: #1a1a1a;
-    --bg-card-hover: #252525;
-    --primary: #646cff;
-    --primary-hover: #747bff;
-    --text-main: #ffffff;
-    --text-muted: #a1a1aa;
-    --border: #333333;
-    --glass-bg: rgba(255, 255, 255, 0.03);
-    --glass-border: rgba(255, 255, 255, 0.05);
+    --bg-dark: #ffffff;
+    --bg-card: #f4f4f5;
+    --bg-card-hover: #e4e4e7;
+    --primary: #18181b;
+    --primary-hover: #27272a;
+    --text-main: #18181b;
+    --text-muted: #71717a;
+    --border: #e4e4e7;
+    --glass-bg: rgba(0, 0, 0, 0.03);
+    --glass-border: rgba(0, 0, 0, 0.05);
     --sidebar-width: 260px;
     --header-height: 70px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-dark: #09090b;
+        --bg-card: #18181b;
+        --bg-card-hover: #27272a;
+        --primary: #fafafa;
+        --primary-hover: #e4e4e7;
+        --text-main: #fafafa;
+        --text-muted: #a1a1aa;
+        --border: #27272a;
+        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.05);
+    }
 }
 
 * {
@@ -62,9 +77,10 @@ body {
 
 .logo-icon {
     font-size: 24px;
-    background: linear-gradient(135deg, #646cff 0%, #bc52ee 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    /* background: linear-gradient(135deg, #646cff 0%, #bc52ee 100%); */
+    /* -webkit-background-clip: text; */
+    /* -webkit-text-fill-color: transparent; */
+    color: var(--primary);
 }
 
 .logo-text {
@@ -72,6 +88,7 @@ body {
     font-size: 24px;
     font-weight: 700;
     letter-spacing: -0.5px;
+    color: var(--text-main);
 }
 
 .nav-menu {
@@ -106,8 +123,9 @@ body {
 
 .nav-item.active {
     background-color: var(--primary);
-    color: white;
-    box-shadow: 0 4px 12px rgba(100, 108, 255, 0.3);
+    color: var(--bg-dark);
+    /* Invert text color for active state */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .user-profile {
@@ -123,7 +141,8 @@ body {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(45deg, #ff6b6b, #feca57);
+    background: var(--primary);
+    /* Simple solid color */
 }
 
 .user-info {
@@ -193,14 +212,14 @@ body {
 
 .btn-primary {
     background-color: var(--primary);
-    color: white;
+    color: var(--bg-dark);
     border: none;
     padding: 10px 20px;
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 4px 12px rgba(100, 108, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary:hover {
@@ -223,7 +242,7 @@ body {
 
 .card {
     background-color: var(--bg-card);
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--border);
     border-radius: 16px;
     padding: 24px;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -231,8 +250,8 @@ body {
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    border-color: var(--border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+    border-color: var(--primary);
 }
 
 .stat-card h3 {
@@ -258,13 +277,15 @@ body {
 }
 
 .trend.positive {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: #10b981;
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-main);
+    border: 1px solid var(--border);
 }
 
 .trend.negative {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
 }
 
 .wide-card {
@@ -288,7 +309,7 @@ body {
     align-items: center;
     gap: 12px;
     padding-bottom: 16px;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--border);
 }
 
 .activity-item:last-child {
@@ -319,12 +340,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #333;
+    background: var(--border);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #444;
+    background: var(--text-muted);
 }
 
 /* Projects and Settings Views */
