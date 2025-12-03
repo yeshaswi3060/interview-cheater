@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, globalShortcut } from 'electron'
 import path from 'node:path'
 
 // The built directory structure
@@ -38,6 +38,8 @@ function createWindow() {
         },
         backgroundColor: '#0f0f0f', // Dark background to match theme
         show: false, // Don't show until ready-to-show
+        skipTaskbar: true, // Hide from taskbar
+        alwaysOnTop: true, // Keep window on top of everything
     })
 
     // Test active push message to Renderer-process.
@@ -54,8 +56,6 @@ function createWindow() {
 
     win.once('ready-to-show', () => {
         win?.show()
-        // Open DevTools for debugging
-        win?.webContents.openDevTools()
     })
 }
 
@@ -76,4 +76,39 @@ app.on('activate', () => {
     }
 })
 
-app.whenReady().then(createWindow)
+// Single Instance Lock
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+    app.quit()
+} else {
+    app.on('second-instance', () => {
+        // Someone tried to run a second instance, we should focus our window.
+        if (win) {
+            if (win.isMinimized()) win.restore()
+            if (!win.isVisible()) win.show()
+            win.focus()
+        }
+    })
+
+    app.whenReady().then(() => {
+        createWindow()
+
+        // Register Global Shortcut
+        globalShortcut.register('CommandOrControl+Enter', () => {
+            if (win) {
+                if (win.isVisible() && win.isFocused()) {
+                    win.hide()
+                } else {
+                    win.show()
+                    win.focus()
+                }
+            }
+        })
+    })
+}
+
+app.on('will-quit', () => {
+    // Unregister all shortcuts.
+    globalShortcut.unregisterAll()
+})
