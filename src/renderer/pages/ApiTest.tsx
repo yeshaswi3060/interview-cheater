@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { testGroqConnection } from '../services/groqService';
 
 interface ApiTestProps {
@@ -104,6 +108,15 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
             color: '#ffffff',
             padding: '20px'
         }}>
+            <style>{`
+                .markdown-content p { margin-bottom: 10px; line-height: 1.5; }
+                .markdown-content ul, .markdown-content ol { margin-bottom: 10px; padding-left: 20px; }
+                .markdown-content li { margin-bottom: 5px; }
+                .markdown-content h1, .markdown-content h2, .markdown-content h3 { margin-top: 15px; margin-bottom: 10px; font-weight: 600; color: #fff; }
+                .markdown-content a { color: #4da6ff; text-decoration: none; }
+                .markdown-content a:hover { text-decoration: underline; }
+                .markdown-content blockquote { border-left: 3px solid #555; padding-left: 10px; color: #aaa; margin: 10px 0; }
+            `}</style>
             <h2 style={{ marginBottom: '10px', fontWeight: '300', letterSpacing: '1px' }}>TEST API CONNECTION</h2>
             <p style={{ marginBottom: '20px', color: '#888', fontSize: '14px' }}>
                 Conversation history is preserved for 12 hours.
@@ -141,7 +154,32 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
                         <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
                             {msg.role === 'user' ? 'You' : 'AI'}
                         </div>
-                        {msg.content}
+                        <div className="markdown-content">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    code({ node, inline, className, children, ...props }: any) {
+                                        const match = /language-(\w+)/.exec(className || '');
+                                        return !inline && match ? (
+                                            <SyntaxHighlighter
+                                                style={vscDarkPlus}
+                                                language={match[1]}
+                                                PreTag="div"
+                                                {...props}
+                                            >
+                                                {String(children).replace(/\n$/, '')}
+                                            </SyntaxHighlighter>
+                                        ) : (
+                                            <code className={className} {...props} style={{ background: '#444', padding: '2px 4px', borderRadius: '4px' }}>
+                                                {children}
+                                            </code>
+                                        );
+                                    }
+                                }}
+                            >
+                                {msg.content}
+                            </ReactMarkdown>
+                        </div>
                     </div>
                 ))}
                 <div ref={messagesEndRef} />

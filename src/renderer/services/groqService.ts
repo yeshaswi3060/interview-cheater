@@ -1,5 +1,19 @@
 export const testGroqConnection = async (apiKey: string, messages: Array<{ role: string, content: string }>) => {
     try {
+        // Add system message for better formatting if not present
+        const systemMessage = {
+            role: 'system',
+            content: `You are a direct and concise AI assistant.
+            Provide ONLY the answer to the user's question.
+            Do NOT include conversational fillers like "Here is the code", "Sure", or "I hope this helps".
+            Do NOT ask if there is anything else you can help with.
+            Keep responses short, crisp, and content-heavy.
+            Format your responses using Markdown.
+            Use code blocks with language identifiers for code.`
+        };
+
+        const apiMessages = [systemMessage, ...messages];
+
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -7,7 +21,7 @@ export const testGroqConnection = async (apiKey: string, messages: Array<{ role:
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                messages: messages,
+                messages: apiMessages,
                 model: 'llama-3.3-70b-versatile'
             })
         });
