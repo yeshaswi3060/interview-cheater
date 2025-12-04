@@ -1,5 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
 import Loading from './components/Loading'
+import TitleBar from './components/TitleBar'
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'))
@@ -12,6 +13,7 @@ const ResponseLanguageSelection = lazy(() => import('./pages/ResponseLanguageSel
 const ProfileInput = lazy(() => import('./pages/ProfileInput'))
 const ApiKeyInput = lazy(() => import('./pages/ApiKeyInput'))
 const ApiTest = lazy(() => import('./pages/ApiTest'))
+const Notch = lazy(() => import('./components/Notch'))
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -33,6 +35,9 @@ function App() {
     const [apiKeys, setApiKeys] = useState({ groq: '', gemini: '' })
     const [showApiKeyInput, setShowApiKeyInput] = useState(false)
     const [showApiTest, setShowApiTest] = useState(false)
+
+    // Notch Mode state
+    const [showNotch, setShowNotch] = useState(false)
 
     // Check if user is already logged in on mount
     useEffect(() => {
@@ -110,6 +115,7 @@ function App() {
         setShowProfileInput(false)
         setShowApiKeyInput(false)
         setShowApiTest(false)
+        setShowNotch(false)
     }
 
     const handleInputLanguagesSelected = (langs: string[]) => {
@@ -153,7 +159,8 @@ function App() {
         localStorage.setItem('groqApiKey', apiKeys.groq)
         localStorage.setItem('geminiApiKey', apiKeys.gemini)
         setShowApiTest(false)
-        // Flow complete, show dashboard
+        // Flow complete, show Notch UI
+        setShowNotch(true)
     }
 
     const handleBackToApiKeyInput = () => {
@@ -161,93 +168,163 @@ function App() {
         setShowApiKeyInput(true)
     }
 
+    const handleExitNotch = () => {
+        setShowNotch(false)
+        // Optionally go back to dashboard or some other state
+    }
+
     // Show auth pages if not authenticated
     if (!isAuthenticated) {
         if (showSignup) {
             return (
-                <Suspense fallback={<Loading />}>
-                    <Signup onSignup={handleSignup} onSwitchToLogin={() => setShowSignup(false)} />
-                </Suspense>
+                <>
+                    <TitleBar />
+                    <div style={{ marginTop: '30px' }}>
+                        <Suspense fallback={<Loading />}>
+                            <Signup onSignup={handleSignup} onSwitchToLogin={() => setShowSignup(false)} />
+                        </Suspense>
+                    </div>
+                </>
             )
         }
         return (
-            <Suspense fallback={<Loading />}>
-                <Login onLogin={handleLogin} onSwitchToSignup={() => setShowSignup(true)} />
-            </Suspense>
+            <>
+                <TitleBar />
+                <div style={{ marginTop: '30px' }}>
+                    <Suspense fallback={<Loading />}>
+                        <Login onLogin={handleLogin} onSwitchToSignup={() => setShowSignup(true)} />
+                    </Suspense>
+                </div>
+            </>
         )
     }
 
     // Language Selection Flow
     if (showInputLangSelect) {
         return (
-            <Suspense fallback={<Loading />}>
-                <InputLanguageSelection onNext={handleInputLanguagesSelected} />
-            </Suspense>
+            <>
+                <TitleBar />
+                <div style={{ marginTop: '30px' }}>
+                    <Suspense fallback={<Loading />}>
+                        <InputLanguageSelection onNext={handleInputLanguagesSelected} />
+                    </Suspense>
+                </div>
+            </>
         )
     }
 
     if (showResponseLangSelect) {
         return (
-            <Suspense fallback={<Loading />}>
-                <ResponseLanguageSelection onFinish={handleResponseLanguagesSelected} onBack={handleBackToInputSelection} />
-            </Suspense>
+            <>
+                <TitleBar />
+                <div style={{ marginTop: '30px' }}>
+                    <Suspense fallback={<Loading />}>
+                        <ResponseLanguageSelection onFinish={handleResponseLanguagesSelected} onBack={handleBackToInputSelection} />
+                    </Suspense>
+                </div>
+            </>
         )
     }
 
     // Profile Input Flow
     if (showProfileInput) {
         return (
-            <Suspense fallback={<Loading />}>
-                <ProfileInput onNext={handleProfileSubmitted} />
-            </Suspense>
+            <>
+                <TitleBar />
+                <div style={{ marginTop: '30px' }}>
+                    <Suspense fallback={<Loading />}>
+                        <ProfileInput onNext={handleProfileSubmitted} />
+                    </Suspense>
+                </div>
+            </>
         )
     }
 
     // API Key Flow
     if (showApiKeyInput) {
         return (
-            <Suspense fallback={<Loading />}>
-                <ApiKeyInput onNext={handleApiKeySubmitted} />
-            </Suspense>
+            <>
+                <TitleBar />
+                <div style={{ marginTop: '30px' }}>
+                    <Suspense fallback={<Loading />}>
+                        <ApiKeyInput onNext={handleApiKeySubmitted} />
+                    </Suspense>
+                </div>
+            </>
         )
     }
 
     if (showApiTest) {
         return (
+            <>
+                <TitleBar />
+                <div style={{ marginTop: '30px' }}>
+                    <Suspense fallback={<Loading />}>
+                        <ApiTest apiKeys={apiKeys} userProfile={userProfile} onFinish={handleApiTestFinished} onBack={handleBackToApiKeyInput} />
+                    </Suspense>
+                </div>
+            </>
+        )
+    }
+
+    // Notch Mode
+    if (showNotch) {
+        return (
             <Suspense fallback={<Loading />}>
-                <ApiTest apiKeys={apiKeys} userProfile={userProfile} onFinish={handleApiTestFinished} onBack={handleBackToApiKeyInput} />
+                <Notch apiKeys={apiKeys} onExit={handleExitNotch} />
             </Suspense>
         )
     }
 
     // Main app (authenticated and setup complete)
     return (
-        <div className="app-container" style={{ background: '#000000', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ textAlign: 'center' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: '300', letterSpacing: '2px' }}>LOGGED IN</h1>
-                <div style={{ marginTop: '20px', fontSize: '14px', color: '#888' }}>
-                    <p>Input Languages: {inputLanguages.join(', ')}</p>
-                    <p>Response Languages: {responseLanguages.join(', ')}</p>
-                    <p>API Keys Configured: Yes</p>
+        <>
+            <TitleBar />
+            <div className="app-container" style={{ background: '#000000', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 30px)', marginTop: '30px' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: '300', letterSpacing: '2px' }}>LOGGED IN</h1>
+                    <div style={{ marginTop: '20px', fontSize: '14px', color: '#888' }}>
+                        <p>Input Languages: {inputLanguages.join(', ')}</p>
+                        <p>Response Languages: {responseLanguages.join(', ')}</p>
+                        <p>API Keys Configured: Yes</p>
+                    </div>
+                    <button
+                        onClick={() => setShowNotch(true)}
+                        style={{
+                            marginTop: '20px',
+                            background: '#fff',
+                            border: 'none',
+                            color: '#000',
+                            padding: '10px 20px',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            marginRight: '10px'
+                        }}
+                    >
+                        Launch Notch
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        style={{
+                            marginTop: '20px',
+                            background: 'transparent',
+                            border: '1px solid #333',
+                            color: '#fff',
+                            padding: '10px 20px',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            fontSize: '12px'
+                        }}
+                    >
+                        Logout
+                    </button>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    style={{
-                        marginTop: '20px',
-                        background: 'transparent',
-                        border: '1px solid #333',
-                        color: '#fff',
-                        padding: '10px 20px',
-                        cursor: 'pointer',
-                        textTransform: 'uppercase',
-                        letterSpacing: '1px',
-                        fontSize: '12px'
-                    }}
-                >
-                    Logout
-                </button>
             </div>
-        </div>
+        </>
     )
 }
 

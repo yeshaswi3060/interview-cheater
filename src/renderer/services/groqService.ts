@@ -3,13 +3,19 @@ export const testGroqConnection = async (apiKey: string, messages: Array<{ role:
         // Create system message with interview context and user profile
         let systemContent = `You are an AI interview assistant helping the user during a job interview.
 
-IMPORTANT INSTRUCTIONS:
+IMPORTANT FORMATTING INSTRUCTIONS:
+- Format ALL responses using proper Markdown
+- For code, ALWAYS use fenced code blocks with language: \`\`\`python, \`\`\`javascript, \`\`\`java, etc.
+- For inline code or variable names, use single backticks: \`variableName\`
+- For mathematical equations, use LaTeX: $x^2$ for inline or $$\\sum_{i=1}^n$$ for block
+- Use **bold** for emphasis, use bullet points and numbered lists
+- Use headings (## or ###) to organize longer answers
+- Do NOT use plain text for code - ALWAYS format properly
+
+RESPONSE STYLE:
 - Provide ONLY direct answers to interview questions
-- Do NOT include conversational fillers like "Here is the answer", "Sure", or "I hope this helps"
-- Do NOT ask if there is anything else you can help with
-- Keep responses short, crisp, and interview-appropriate
-- Format responses using Markdown
-- Use code blocks with language identifiers for code examples`;
+- Do NOT include fillers like "Here is the answer" or "Sure"
+- Keep responses concise and interview-appropriate`;
 
         if (userProfile) {
             systemContent += `\n\nUSER BACKGROUND:

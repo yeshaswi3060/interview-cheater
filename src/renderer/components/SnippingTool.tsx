@@ -12,6 +12,7 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
     const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
     const [image, setImage] = useState<HTMLImageElement | null>(null);
+    const [scale, setScale] = useState({ x: 1, y: 1 });
 
     useEffect(() => {
         const img = new Image();
@@ -19,61 +20,85 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
         img.onload = () => {
             setImage(img);
             if (canvasRef.current) {
-                canvasRef.current.width = window.innerWidth;
-                canvasRef.current.height = window.innerHeight;
-                draw(img, { x: 0, y: 0 }, { x: 0, y: 0 });
+                // Use actual screen dimensions
+                const screenWidth = window.screen.width;
+                const screenHeight = window.screen.height;
+
+                canvasRef.current.width = screenWidth;
+                canvasRef.current.height = screenHeight;
+
+                // Calculate scale between image and canvas
+                // This handles DPI scaling differences
+                const scaleX = img.naturalWidth / screenWidth;
+                const scaleY = img.naturalHeight / screenHeight;
+                setScale({ x: scaleX, y: scaleY });
+
+                draw(img, { x: 0, y: 0 }, { x: 0, y: 0 }, scaleX, scaleY);
             }
         };
     }, [imageSrc]);
 
-    const draw = (img: HTMLImageElement, start: { x: number, y: number }, end: { x: number, y: number }) => {
+    const draw = (
+        img: HTMLImageElement,
+        start: { x: number, y: number },
+        end: { x: number, y: number },
+        scaleX: number = scale.x,
+        scaleY: number = scale.y
+    ) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw original image (scaled to fit if necessary, but here we assume full screen capture matches window)
+        // Draw image scaled to canvas size
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // Draw overlay
+        // Dark overlay
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Calculate selection rect
+        // Selection rect
         const x = Math.min(start.x, end.x);
         const y = Math.min(start.y, end.y);
         const width = Math.abs(end.x - start.x);
         const height = Math.abs(end.y - start.y);
 
         if (width > 0 && height > 0) {
-            // Clear selection area to show underlying image
+            // Clear selection to show image
             ctx.clearRect(x, y, width, height);
-            ctx.drawImage(img, x, y, width, height, x, y, width, height);
+            ctx.drawImage(img,
+                x * scaleX, y * scaleY, width * scaleX, height * scaleY,
+                x, y, width, height
+            );
 
-            // Draw border
+            // White border
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.strokeRect(x, y, width, height);
+
+            // Corner handles
+            const handleSize = 8;
+            ctx.fillStyle = '#fff';
+            [[x, y], [x + width, y], [x, y + height], [x + width, y + height]].forEach(([hx, hy]) => {
+                ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+            });
         }
     };
 
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDrawing(true);
-        const rect = canvasRef.current?.getBoundingClientRect();
-        const x = e.clientX - (rect?.left || 0);
-        const y = e.clientY - (rect?.top || 0);
+        const x = e.clientX;
+        const y = e.clientY;
         setStartPos({ x, y });
         setCurrentPos({ x, y });
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!isDrawing || !image) return;
-        const rect = canvasRef.current?.getBoundingClientRect();
-        const x = e.clientX - (rect?.left || 0);
-        const y = e.clientY - (rect?.top || 0);
+        const x = e.clientX;
+        const y = e.clientY;
         setCurrentPos({ x, y });
         draw(image, startPos, { x, y });
     };
@@ -90,38 +115,30 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
         const width = Math.abs(currentPos.x - startPos.x);
         const height = Math.abs(currentPos.y - startPos.y);
 
-        if (width === 0 || height === 0) {
-            alert('Please select an area first.');
+        if (width < 10 || height < 10) {
+            alert('Please select a larger area.');
             return;
         }
 
-        // Calculate scaling ratio between displayed canvas and actual image
-        // The canvas size is window.innerWidth/Height
-        // The image size is the actual screenshot resolution (likely higher due to DPI)
-        const scaleX = image.naturalWidth / canvasRef.current.width;
-        const scaleY = image.naturalHeight / canvasRef.current.height;
-
+        // Create cropped image at original resolution
         const tempCanvas = document.createElement('canvas');
-        // Set temp canvas size to the actual resolution of the selected area
-        tempCanvas.width = width * scaleX;
-        tempCanvas.height = height * scaleY;
+        tempCanvas.width = width * scale.x;
+        tempCanvas.height = height * scale.y;
         const ctx = tempCanvas.getContext('2d');
 
-        // Draw the selected portion of the original image to the temp canvas
-        // We map the selection coordinates (canvas space) to image coordinates (image space)
         ctx?.drawImage(
             image,
-            x * scaleX,
-            y * scaleY,
-            width * scaleX,
-            height * scaleY,
+            x * scale.x,
+            y * scale.y,
+            width * scale.x,
+            height * scale.y,
             0,
             0,
             tempCanvas.width,
             tempCanvas.height
         );
 
-        onCrop(tempCanvas.toDataURL());
+        onCrop(tempCanvas.toDataURL('image/png'));
     };
 
     return (
@@ -132,51 +149,77 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
             width: '100vw',
             height: '100vh',
             zIndex: 9999,
-            cursor: 'crosshair'
+            cursor: 'crosshair',
+            background: '#000'
         }}>
             <canvas
                 ref={canvasRef}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-                style={{ display: 'block' }}
+                onMouseLeave={handleMouseUp}
+                style={{
+                    display: 'block',
+                    width: '100vw',
+                    height: '100vh'
+                }}
             />
+
+            {/* Instructions */}
             <div style={{
                 position: 'absolute',
-                bottom: '20px',
+                top: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(0,0,0,0.75)',
+                color: '#fff',
+                padding: '10px 20px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                pointerEvents: 'none'
+            }}>
+                Click and drag to select area
+            </div>
+
+            {/* Buttons */}
+            <div style={{
+                position: 'absolute',
+                bottom: '30px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 display: 'flex',
-                gap: '10px',
+                gap: '12px',
                 zIndex: 10000
             }}>
-                <button onClick={handleConfirm} style={buttonStyle}>CONFIRM SELECTION</button>
-                <button onClick={onCancel} style={cancelButtonStyle}>CANCEL</button>
+                <button onClick={handleConfirm} style={buttonStyle}>✓ CONFIRM</button>
+                <button onClick={onCancel} style={cancelButtonStyle}>✕ CANCEL</button>
             </div>
         </div>
     );
 };
 
 const buttonStyle: React.CSSProperties = {
-    padding: '10px 20px',
+    padding: '12px 24px',
     background: '#fff',
     color: '#000',
     border: 'none',
-    borderRadius: '4px',
-    fontWeight: 'bold',
+    borderRadius: '25px',
+    fontWeight: '600',
+    fontSize: '13px',
     cursor: 'pointer',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
+    boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
 };
 
 const cancelButtonStyle: React.CSSProperties = {
-    padding: '10px 20px',
-    background: '#333',
+    padding: '12px 24px',
+    background: 'rgba(255,255,255,0.1)',
     color: '#fff',
-    border: '1px solid #555',
-    borderRadius: '4px',
-    fontWeight: 'bold',
+    border: '1px solid rgba(255,255,255,0.3)',
+    borderRadius: '25px',
+    fontWeight: '600',
+    fontSize: '13px',
     cursor: 'pointer',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
+    boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
 };
 
 export default SnippingTool;
