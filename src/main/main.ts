@@ -92,19 +92,42 @@ if (!gotTheLock) {
     })
 
     app.whenReady().then(() => {
-        createWindow()
-
-        // Register Global Shortcut
-        globalShortcut.register('CommandOrControl+Enter', () => {
-            if (win) {
-                if (win.isVisible() && win.isFocused()) {
-                    win.hide()
-                } else {
-                    win.show()
-                    win.focus()
-                }
+        // Check for Administrator Privileges
+        const { exec } = require('child_process');
+        exec('net session', (err: any, stdout: any, stderr: any) => {
+            if (err || (stderr && stderr.length > 0)) {
+                // Not running as admin
+                const { dialog } = require('electron');
+                dialog.showMessageBoxSync({
+                    type: 'error',
+                    title: 'Administrator Access Required',
+                    message: 'This application requires Administrator privileges to function correctly.\n\nPlease restart the application as an Administrator.',
+                    buttons: ['Exit']
+                });
+                app.quit();
+                return;
             }
-        })
+
+            // Running as admin, proceed to create window
+            createWindow()
+
+            // Enable Screen Protection (Invisible to Screen Share)
+            if (win) {
+                win.setContentProtection(true);
+            }
+
+            // Register Global Shortcut
+            globalShortcut.register('CommandOrControl+Enter', () => {
+                if (win) {
+                    if (win.isVisible() && win.isFocused()) {
+                        win.hide()
+                    } else {
+                        win.show()
+                        win.focus()
+                    }
+                }
+            })
+        });
     })
 }
 
