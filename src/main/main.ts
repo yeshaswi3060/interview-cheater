@@ -22,19 +22,23 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            backgroundThrottling: false, // Keep running when in background
+            backgroundThrottling: false,
         },
         frame: false,
         transparent: true,
         backgroundColor: '#00000000',
         show: false,
-        skipTaskbar: true, // Hide from taskbar, still shows in Task Manager details
+        skipTaskbar: true,
         alwaysOnTop: true,
         hasShadow: false,
         resizable: false,
         movable: false,
         focusable: true,
-        title: 'System Service', // Generic name in Task Manager
+        title: 'System Service',
+        // These settings help prevent background freezing
+        type: 'toolbar', // Use toolbar type for overlay windows
+        paintWhenInitiallyHidden: true,
+        thickFrame: false,
     })
 
     // Optimize rendering
@@ -145,7 +149,7 @@ if (!gotTheLock) {
                     // For snipping: disable ignore mouse, set fullscreen
                     win.setIgnoreMouseEvents(false);
                     win.setSimpleFullScreen(true);
-                    win.setAlwaysOnTop(true, 'screen-saver');
+                    win.setAlwaysOnTop(true, 'floating'); // Use floating, not screen-saver
                 } else {
                     win.setSimpleFullScreen(false);
                 }
@@ -161,7 +165,7 @@ if (!gotTheLock) {
                 win.setSimpleFullScreen(false);
                 win.setPosition(0, 0);
                 win.setSize(width, height);
-                win.setAlwaysOnTop(true, 'screen-saver');
+                win.setAlwaysOnTop(true, 'floating'); // Use floating to not block video rendering
                 win.setIgnoreMouseEvents(true, { forward: true });
             }
         });
