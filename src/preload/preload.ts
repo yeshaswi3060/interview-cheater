@@ -20,5 +20,8 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     },
 
     // You can expose other APTs you need here.
-    // ...
+    getScreenSources: (opts: any) => ipcRenderer.invoke('DESKTOP_CAPTURER_GET_SOURCES', opts),
+    minimizeWindow: () => ipcRenderer.invoke('MINIMIZE_WINDOW'),
+    restoreWindow: () => ipcRenderer.invoke('RESTORE_WINDOW'),
+    setFullscreen: (flag: boolean) => ipcRenderer.invoke('SET_FULLSCREEN', flag)
 })

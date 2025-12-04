@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer } from 'electron'
 import path from 'node:path'
 
 // The built directory structure
@@ -127,6 +127,31 @@ if (!gotTheLock) {
                     }
                 }
             })
+        });
+
+        // IPC Handler for desktopCapturer
+        ipcMain.handle('DESKTOP_CAPTURER_GET_SOURCES', async (_event, opts) => {
+            return await desktopCapturer.getSources(opts)
+        })
+
+        // Window Management IPCs
+        ipcMain.handle('MINIMIZE_WINDOW', () => {
+            win?.minimize();
+        });
+
+        ipcMain.handle('RESTORE_WINDOW', () => {
+            if (win) {
+                if (win.isMinimized()) win.restore();
+                win.show();
+                win.focus();
+            }
+        });
+
+        ipcMain.handle('SET_FULLSCREEN', (_event, flag: boolean) => {
+            if (win) {
+                win.setSimpleFullScreen(flag);
+                win.setAlwaysOnTop(flag, 'screen-saver'); // Ensure it stays on top when fullscreen
+            }
         });
     })
 }

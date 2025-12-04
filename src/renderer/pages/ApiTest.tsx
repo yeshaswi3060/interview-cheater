@@ -4,25 +4,38 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { testGroqConnection } from '../services/groqService';
+import { extractTextFromImage } from '../services/ocrService';
+import { captureScreen } from '../services/mediaCapture';
+import { startLiveTranscription, stopLiveTranscription } from '../services/transcriptionService';
+import SnippingTool from '../components/SnippingTool';
 
 interface ApiTestProps {
-    apiKey: string;
+    apiKeys: { groq: string; gemini: string };
+    userProfile?: any;
     onFinish: () => void;
     onBack: () => void;
 }
 
 interface ChatMessage {
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
 }
 
-const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
+const ApiTest: React.FC<ApiTestProps> = ({ apiKeys, userProfile, onFinish, onBack }) => {
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [testPassed, setTestPassed] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false);
+
+    // Snipping Tool State
+    const [isSnipping, setIsSnipping] = useState(false);
+    const [screenshotSrc, setScreenshotSrc] = useState<string | null>(null);
+
+    // Test Statuses
+    const [groqStatus, setGroqStatus] = useState<'pending' | 'success' | 'failure'>('pending');
+    const [ocrStatus, setOcrStatus] = useState<'pending' | 'success' | 'failure'>('pending');
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -33,68 +46,122 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
         scrollToBottom();
     }, [chatHistory]);
 
+    // Cleanup on unmount
     useEffect(() => {
-        const savedHistory = localStorage.getItem('chatHistory');
-        const lastMessageTime = localStorage.getItem('lastMessageTime');
-
-        if (savedHistory && lastMessageTime) {
-            const timeSinceLastMessage = Date.now() - parseInt(lastMessageTime);
-            const twelveHoursInMs = 12 * 60 * 60 * 1000;
-
-            if (timeSinceLastMessage > twelveHoursInMs) {
-                // Expired, clear history
-                localStorage.removeItem('chatHistory');
-                localStorage.removeItem('lastMessageTime');
-                setChatHistory([]);
-            } else {
-                // Valid, load history
-                setChatHistory(JSON.parse(savedHistory));
-                setTestPassed(true); // Assume passed if we have history
-            }
-        }
+        return () => {
+            stopLiveTranscription();
+        };
     }, []);
 
-    const handleTest = async () => {
+    const addLog = (content: string, type: 'system' | 'assistant' | 'user' = 'system') => {
+        setChatHistory(prev => [...prev, { role: type, content, timestamp: Date.now() }]);
+    };
+
+    const handleGroqTest = async () => {
         if (!message.trim()) return;
 
-        const newUserMessage: ChatMessage = {
-            role: 'user',
-            content: message,
-            timestamp: Date.now()
-        };
-
-        const updatedHistory = [...chatHistory, newUserMessage];
-        setChatHistory(updatedHistory);
+        const userMsg = message;
         setMessage('');
+        addLog(userMsg, 'user');
         setLoading(true);
-        setError('');
 
         try {
-            // Prepare messages for API (exclude timestamp)
-            const apiMessages = updatedHistory.map(({ role, content }) => ({ role, content }));
-
-            const result = await testGroqConnection(apiKey, apiMessages);
-
-            const newAiMessage: ChatMessage = {
-                role: 'assistant',
-                content: result,
-                timestamp: Date.now()
-            };
-
-            const finalHistory = [...updatedHistory, newAiMessage];
-            setChatHistory(finalHistory);
-            setTestPassed(true);
-
-            // Save to localStorage
-            localStorage.setItem('chatHistory', JSON.stringify(finalHistory));
-            localStorage.setItem('lastMessageTime', Date.now().toString());
-
+            const response = await testGroqConnection(apiKeys.groq, [{ role: 'user', content: userMsg }], userProfile);
+            addLog(response, 'assistant');
+            setGroqStatus('success');
         } catch (err: any) {
-            setError(err.message);
-            setTestPassed(false);
+            addLog(`Groq Error: ${err.message}`, 'system');
+            setGroqStatus('failure');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleStartSnipping = async () => {
+        setLoading(true);
+        try {
+            // 1. Minimize the window to reveal the desktop
+            await (window as any).ipcRenderer.minimizeWindow();
+
+            // 2. Wait for animation (500ms)
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 3. Capture the screen (now clean)
+            const imageBase64 = await captureScreen();
+            setScreenshotSrc(imageBase64);
+
+            // 4. Restore window and go full screen for selection
+            await (window as any).ipcRenderer.restoreWindow();
+            await (window as any).ipcRenderer.setFullscreen(true);
+
+            setIsSnipping(true);
+        } catch (err: any) {
+            addLog(`Screen Capture Error: ${err.message}`, 'system');
+            // Ensure we restore if something fails
+            await (window as any).ipcRenderer.restoreWindow();
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCropConfirm = async (croppedImage: string) => {
+        setIsSnipping(false);
+        setScreenshotSrc(null);
+
+        // Restore normal window state
+        await (window as any).ipcRenderer.setFullscreen(false);
+
+        setLoading(true);
+        addLog('Extracting text from selected area...', 'system');
+
+        try {
+            const text = await extractTextFromImage(croppedImage);
+
+            if (text && text.trim().length > 0) {
+                addLog(`Extracted Text (Region):\n\n${text}`, 'assistant');
+                setOcrStatus('success');
+            } else {
+                addLog('No text found in the selected area.', 'system');
+                setOcrStatus('failure');
+            }
+        } catch (err: any) {
+            addLog(`OCR Error: ${err.message}`, 'system');
+            setOcrStatus('failure');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCropCancel = async () => {
+        setIsSnipping(false);
+        setScreenshotSrc(null);
+        // Restore normal window state
+        await (window as any).ipcRenderer.setFullscreen(false);
+    };
+
+    const toggleLiveTranscription = () => {
+        if (isTranscribing) {
+            stopLiveTranscription();
+            setIsTranscribing(false);
+            addLog('Live transcription stopped.', 'system');
+        } else {
+            addLog('Starting live transcription... (Listening for system audio)', 'system');
+            setIsTranscribing(true);
+            startLiveTranscription(
+                apiKeys.groq,
+                (text) => {
+                    addLog(`Transcript: ${text}`, 'assistant');
+                },
+                (error) => {
+                    addLog(`Transcription Error: ${error}`, 'system');
+                    setIsTranscribing(false);
+                }
+            );
+        }
+    };
+
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
     };
 
     return (
@@ -116,15 +183,50 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
                 .markdown-content a { color: #4da6ff; text-decoration: none; }
                 .markdown-content a:hover { text-decoration: underline; }
                 .markdown-content blockquote { border-left: 3px solid #555; padding-left: 10px; color: #aaa; margin: 10px 0; }
+                .code-block-wrapper { position: relative; margin-bottom: 10px; }
+                .copy-button {
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    background: #333;
+                    color: #fff;
+                    border: 1px solid #555;
+                    border-radius: 4px;
+                    padding: 2px 6px;
+                    font-size: 10px;
+                    cursor: pointer;
+                    z-index: 10;
+                }
+                .copy-button:hover { background: #444; }
+                .pulse {
+                    animation: pulse-animation 2s infinite;
+                }
+                @keyframes pulse-animation {
+                    0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+                }
             `}</style>
-            <h2 style={{ marginBottom: '10px', fontWeight: '300', letterSpacing: '1px' }}>TEST API CONNECTION</h2>
-            <p style={{ marginBottom: '20px', color: '#888', fontSize: '14px' }}>
-                Conversation history is preserved for 12 hours.
-            </p>
+
+            {isSnipping && screenshotSrc && (
+                <SnippingTool
+                    imageSrc={screenshotSrc}
+                    onCrop={handleCropConfirm}
+                    onCancel={handleCropCancel}
+                />
+            )}
+
+            <h2 style={{ marginBottom: '10px', fontWeight: '300', letterSpacing: '1px' }}>SYSTEM CHECK</h2>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <span style={{ color: groqStatus === 'success' ? '#4caf50' : groqStatus === 'failure' ? '#f44336' : '#888' }}>GROQ: {groqStatus.toUpperCase()}</span>
+                <span style={{ color: '#333' }}>|</span>
+                <span style={{ color: ocrStatus === 'success' ? '#4caf50' : ocrStatus === 'failure' ? '#f44336' : '#888' }}>OCR: {ocrStatus.toUpperCase()}</span>
+            </div>
 
             <div style={{
                 width: '100%',
-                maxWidth: '600px',
+                maxWidth: '700px',
                 flex: 1,
                 overflowY: 'auto',
                 marginBottom: '20px',
@@ -138,21 +240,22 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
             }}>
                 {chatHistory.length === 0 && (
                     <div style={{ textAlign: 'center', color: '#666', marginTop: '20px' }}>
-                        No messages yet. Start a conversation!
+                        Run tests to verify connections.
                     </div>
                 )}
                 {chatHistory.map((msg, index) => (
                     <div key={index} style={{
                         alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                        maxWidth: '80%',
+                        maxWidth: '90%',
                         padding: '10px 15px',
                         borderRadius: '12px',
-                        background: msg.role === 'user' ? '#333' : '#222',
-                        color: '#fff',
-                        border: '1px solid #444'
+                        background: msg.role === 'user' ? '#333' : msg.role === 'system' ? '#222' : '#1a1a1a',
+                        color: msg.role === 'system' ? '#aaa' : '#fff',
+                        border: '1px solid #444',
+                        fontSize: msg.role === 'system' ? '13px' : '14px'
                     }}>
-                        <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
-                            {msg.role === 'user' ? 'You' : 'AI'}
+                        <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px', textTransform: 'uppercase' }}>
+                            {msg.role}
                         </div>
                         <div className="markdown-content">
                             <ReactMarkdown
@@ -160,15 +263,19 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
                                 components={{
                                     code({ node, inline, className, children, ...props }: any) {
                                         const match = /language-(\w+)/.exec(className || '');
+                                        const codeText = String(children).replace(/\n$/, '');
                                         return !inline && match ? (
-                                            <SyntaxHighlighter
-                                                style={vscDarkPlus}
-                                                language={match[1]}
-                                                PreTag="div"
-                                                {...props}
-                                            >
-                                                {String(children).replace(/\n$/, '')}
-                                            </SyntaxHighlighter>
+                                            <div className="code-block-wrapper">
+                                                <button className="copy-button" onClick={() => handleCopy(codeText)}>Copy</button>
+                                                <SyntaxHighlighter
+                                                    style={vscDarkPlus}
+                                                    language={match[1]}
+                                                    PreTag="div"
+                                                    {...props}
+                                                >
+                                                    {codeText}
+                                                </SyntaxHighlighter>
+                                            </div>
                                         ) : (
                                             <code className={className} {...props} style={{ background: '#444', padding: '2px 4px', borderRadius: '4px' }}>
                                                 {children}
@@ -185,18 +292,12 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
                 <div ref={messagesEndRef} />
             </div>
 
-            {error && (
-                <div style={{ color: '#ff4444', marginBottom: '10px', fontSize: '14px' }}>
-                    Error: {error}
-                </div>
-            )}
-
-            <div style={{ width: '100%', maxWidth: '600px', display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ width: '100%', maxWidth: '700px', display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 <input
                     type="text"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a message..."
+                    placeholder="Type to test Groq..."
                     style={{
                         flex: 1,
                         padding: '12px',
@@ -205,59 +306,36 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
                         borderRadius: '4px',
                         color: '#fff',
                         outline: 'none',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        minWidth: '200px'
                     }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleTest()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleGroqTest()}
                 />
+                <button onClick={handleGroqTest} disabled={loading || !message.trim()} style={buttonStyle}>TEST GROQ</button>
+                <button onClick={handleStartSnipping} disabled={loading} style={buttonStyle}>SELECT AREA</button>
                 <button
-                    onClick={handleTest}
-                    disabled={loading || !message.trim()}
+                    onClick={toggleLiveTranscription}
                     style={{
-                        padding: '0 20px',
-                        background: loading ? '#333' : '#ffffff',
-                        color: loading ? '#888' : '#000000',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: loading || !message.trim() ? 'not-allowed' : 'pointer',
-                        fontWeight: '500'
-                    }}
+                        ...buttonStyle,
+                        background: isTranscribing ? '#f44336' : '#333',
+                        color: '#fff',
+                        className: isTranscribing ? 'pulse' : ''
+                    } as any}
                 >
-                    {loading ? 'SENDING...' : 'SEND'}
+                    {isTranscribing ? 'STOP LISTENING' : 'START LISTENING'}
                 </button>
             </div>
 
             <div style={{ display: 'flex', gap: '20px' }}>
-                <button
-                    onClick={onBack}
-                    style={{
-                        padding: '12px 40px',
-                        background: 'transparent',
-                        color: '#ffffff',
-                        border: '1px solid #333',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        letterSpacing: '1px',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    BACK
-                </button>
+                <button onClick={onBack} style={secondaryButtonStyle}>BACK</button>
                 <button
                     onClick={onFinish}
-                    disabled={!testPassed}
+                    disabled={groqStatus !== 'success' || ocrStatus !== 'success'}
                     style={{
-                        padding: '12px 40px',
-                        background: testPassed ? '#ffffff' : '#333333',
-                        color: testPassed ? '#000000' : '#888888',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: testPassed ? 'pointer' : 'not-allowed',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        letterSpacing: '1px',
-                        transition: 'all 0.2s ease'
+                        ...primaryButtonStyle,
+                        background: (groqStatus === 'success' && ocrStatus === 'success') ? '#fff' : '#333',
+                        color: (groqStatus === 'success' && ocrStatus === 'success') ? '#000' : '#888',
+                        cursor: (groqStatus === 'success' && ocrStatus === 'success') ? 'pointer' : 'not-allowed'
                     }}
                 >
                     FINISH
@@ -265,6 +343,45 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKey, onFinish, onBack }) => {
             </div>
         </div>
     );
+};
+
+const buttonStyle: React.CSSProperties = {
+    padding: '0 15px',
+    background: '#333',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    fontSize: '12px',
+    height: '42px',
+    whiteSpace: 'nowrap'
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+    padding: '12px 40px',
+    background: '#ffffff',
+    color: '#000000',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    letterSpacing: '1px',
+    transition: 'all 0.2s ease'
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+    padding: '12px 40px',
+    background: 'transparent',
+    color: '#ffffff',
+    border: '1px solid #333',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    letterSpacing: '1px',
+    transition: 'all 0.2s ease'
 };
 
 export default ApiTest;
