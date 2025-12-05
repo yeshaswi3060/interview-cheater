@@ -197,6 +197,11 @@ if (!gotTheLock) {
                 win.setAlwaysOnTop(true);
             }
         });
+
+        // Quit application
+        ipcMain.on('app-quit', () => {
+            app.quit();
+        });
     })
 }
 

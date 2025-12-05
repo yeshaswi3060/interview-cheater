@@ -16,6 +16,7 @@ import SnippingTool from './SnippingTool';
 interface NotchProps {
     apiKeys: { groq: string; gemini: string };
     onExit: () => void;
+    onSettings: () => void;
 }
 
 interface ResponseItem {
@@ -134,7 +135,7 @@ const MarkdownContent: React.FC<{ content: string }> = memo(({ content }) => (
     </ReactMarkdown>
 ));
 
-const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit }) => {
+const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
     const [query, setQuery] = useState('');
     const [currentResponse, setCurrentResponse] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -444,7 +445,7 @@ Provide the best answer:`;
             {/* CENTER - Notch */}
             <div className="notch-wrapper">
                 <div className="notch-bar" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-                    <button className="notch-dot-btn" onClick={onExit} title="Dashboard"><span></span></button>
+                    <button className="notch-dot-btn" onClick={onSettings} title="Settings"><span></span></button>
                     <button className="notch-icon-btn" onClick={handleStartSnipping} title="Capture" disabled={loading}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <circle cx="12" cy="12" r="3"></circle>

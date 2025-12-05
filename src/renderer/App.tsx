@@ -14,6 +14,7 @@ const ProfileInput = lazy(() => import('./pages/ProfileInput'))
 const ApiKeyInput = lazy(() => import('./pages/ApiKeyInput'))
 const ApiTest = lazy(() => import('./pages/ApiTest'))
 const Notch = lazy(() => import('./components/Notch'))
+const Settings = lazy(() => import('./pages/Settings'))
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -38,6 +39,7 @@ function App() {
 
     // Notch Mode state
     const [showNotch, setShowNotch] = useState(false)
+    const [showSettings, setShowSettings] = useState(false)
 
     // Check if user is already logged in on mount
     useEffect(() => {
@@ -173,6 +175,24 @@ function App() {
         // Optionally go back to dashboard or some other state
     }
 
+    const handleOpenSettings = () => {
+        setShowNotch(false)
+        setShowSettings(true)
+    }
+
+    const handleBackFromSettings = () => {
+        setShowSettings(false)
+        setShowNotch(true)
+    }
+
+    const handleUpdateApiKeys = (keys: { groq: string; gemini: string }) => {
+        setApiKeys(keys)
+    }
+
+    const handleUpdateProfile = (profile: any) => {
+        setUserProfile(profile)
+    }
+
     // Show auth pages if not authenticated
     if (!isAuthenticated) {
         if (showSignup) {
@@ -267,11 +287,26 @@ function App() {
         )
     }
 
+    // Settings Page
+    if (showSettings) {
+        return (
+            <Suspense fallback={<Loading />}>
+                <Settings
+                    apiKeys={apiKeys}
+                    userProfile={userProfile}
+                    onBack={handleBackFromSettings}
+                    onUpdateApiKeys={handleUpdateApiKeys}
+                    onUpdateProfile={handleUpdateProfile}
+                />
+            </Suspense>
+        )
+    }
+
     // Notch Mode
     if (showNotch) {
         return (
             <Suspense fallback={<Loading />}>
-                <Notch apiKeys={apiKeys} onExit={handleExitNotch} />
+                <Notch apiKeys={apiKeys} onExit={handleExitNotch} onSettings={handleOpenSettings} />
             </Suspense>
         )
     }
