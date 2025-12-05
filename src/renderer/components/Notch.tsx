@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import '../styles/Notch.css';
-import { testGroqConnection } from '../services/groqService';
+import { testGroqConnection, getActiveAssistant, getAllAssistants, setActiveAssistant } from '../services/groqService';
 import { extractTextFromImage } from '../services/ocrService';
 import { captureScreen } from '../services/mediaCapture';
 import { startLiveTranscription, stopLiveTranscription } from '../services/transcriptionService';
@@ -152,16 +152,35 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
     const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
     const [hoveredTranscriptId, setHoveredTranscriptId] = useState<number | null>(null);
 
+    // AI Mode selector state
+    const [showModeDropdown, setShowModeDropdown] = useState(false);
+    const [currentMode, setCurrentMode] = useState<{ name: string; mode: string } | null>(() => getActiveAssistant());
+    const [allAssistants, setAllAssistants] = useState(() => getAllAssistants());
+
     const inputRef = useRef<HTMLInputElement>(null);
     const responseIdRef = useRef(0);
     const transcriptIdRef = useRef(0);
+    const snipRef = useRef<() => void>(() => { });
+    const transcribeRef = useRef<() => void>(() => { });
 
     useEffect(() => {
         (window as any).ipcRenderer.invoke('SET_NOTCH_MODE');
         inputRef.current?.focus();
 
+        // Listen for global shortcuts from main process
+        const handleGlobalShortcut = (_event: any, action: string) => {
+            if (action === 'snip') {
+                snipRef.current();
+            } else if (action === 'transcribe') {
+                transcribeRef.current();
+            }
+        };
+
+        (window as any).ipcRenderer.on('global-shortcut', handleGlobalShortcut);
+
         return () => {
             stopLiveTranscription();
+            (window as any).ipcRenderer.removeListener('global-shortcut', handleGlobalShortcut);
             (window as any).ipcRenderer.invoke('EXIT_NOTCH_MODE');
         };
     }, []);
@@ -337,6 +356,10 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
         }
     }, [isTranscribing, apiKeys.groq]);
 
+    // Keep refs updated with latest callbacks for global shortcuts
+    useEffect(() => { snipRef.current = handleStartSnipping; }, [handleStartSnipping]);
+    useEffect(() => { transcribeRef.current = toggleTranscription; }, [toggleTranscription]);
+
     // Send transcript to AI with interview context
     const sendTranscriptToAI = useCallback(async (transcriptId: number, transcriptText: string) => {
         // Remove the transcript that was sent
@@ -381,12 +404,54 @@ Provide the best answer:`;
         setResponses(prev => prev.filter(r => r.id !== id));
     }, []);
 
+    // AI Mode switching
+    const switchAssistant = useCallback((id: string) => {
+        setActiveAssistant(id);
+        setCurrentMode(getActiveAssistant());
+        setShowModeDropdown(false);
+    }, []);
+
+    const refreshAssistants = useCallback(() => {
+        setAllAssistants(getAllAssistants());
+        setCurrentMode(getActiveAssistant());
+    }, []);
+
     if (isSnipping && screenshotSrc) {
         return <SnippingTool imageSrc={screenshotSrc} onCrop={handleCropConfirm} onCancel={handleCropCancel} />;
     }
 
     return (
         <div className="overlay-container">
+            {/* TOP RIGHT - AI Mode Selector */}
+            <div
+                className="ai-mode-panel"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onClick={() => { refreshAssistants(); setShowModeDropdown(!showModeDropdown); }}
+            >
+                <div className="mode-indicator">
+                    <span className="mode-dot"></span>
+                    <span className="mode-label">{currentMode?.name || 'No AI Active'}</span>
+                    <svg className="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="6,9 12,15 18,9" />
+                    </svg>
+                </div>
+                {showModeDropdown && allAssistants.length > 0 && (
+                    <div className="mode-dropdown">
+                        {allAssistants.map((assistant) => (
+                            <button
+                                key={assistant.id}
+                                className={`mode-option ${currentMode?.name === assistant.name ? 'active' : ''}`}
+                                onClick={(e) => { e.stopPropagation(); switchAssistant(assistant.id); }}
+                            >
+                                <span className="option-name">{assistant.name}</span>
+                                <span className="option-mode">{assistant.mode}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
             {/* RIGHT - Transcript Panel */}
             {(isTranscribing || transcripts.length > 0) && (
                 <div className="transcript-panel" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>

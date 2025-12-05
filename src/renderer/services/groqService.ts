@@ -6,42 +6,77 @@ export const testGroqConnection = async (apiKey: string, messages: Array<{ role:
         const resumeText = localStorage.getItem('resumeText') || '';
 
         let systemContent = '';
+        let activeMode = 'default';
 
         // Check if there's a custom active assistant
         if (savedAssistants && activeAssistantId) {
             const assistants = JSON.parse(savedAssistants);
             const activeAssistant = assistants.find((a: any) => a.id === activeAssistantId);
             if (activeAssistant) {
+                activeMode = activeAssistant.mode;
                 systemContent = activeAssistant.systemPrompt;
+
+                // Add mode-specific response style instructions
+                const modeStyles: { [key: string]: string } = {
+                    'interview': `\n\nRESPONSE STYLE - INTERVIEW MODE:
+- Keep answers SHORT and CRISP (2-4 sentences for simple questions)
+- Be professional, confident, and direct
+- No filler words like "Sure" or "Here's the answer"
+- Use bullet points for longer answers
+- Sound like a confident job candidate`,
+
+                    'study': `\n\nRESPONSE STYLE - STUDY MODE:
+- Provide DETAILED explanations with examples
+- Break down complex concepts step-by-step
+- Use analogies to make things easier
+- Include relevant examples
+- Be thorough and educational`,
+
+                    'meeting': `\n\nRESPONSE STYLE - MEETING MODE:
+- Be professional and business-focused
+- Provide clear, actionable insights
+- Summarize key points concisely
+- Suggest next steps when appropriate`,
+
+                    'coding': `\n\nRESPONSE STYLE - CODING MODE:
+- Provide working code examples with proper formatting
+- Explain the logic and approach
+- Mention edge cases and best practices
+- Use fenced code blocks with language tags`,
+
+                    'creative': `\n\nRESPONSE STYLE - CREATIVE MODE:
+- Be witty, fun, and imaginative
+- Think outside the box
+- Use engaging language
+- Be entertaining while helpful`,
+                };
+
+                if (modeStyles[activeMode]) {
+                    systemContent += modeStyles[activeMode];
+                }
 
                 // Add resume context if available
                 if (resumeText) {
-                    systemContent += `\n\nUser's Resume/Background:\n${resumeText}`;
+                    systemContent += `\n\nUser's Background:\n${resumeText}`;
                 }
             }
         }
 
         // Fall back to default if no custom assistant
         if (!systemContent) {
-            systemContent = `You are an AI interview assistant helping the user during a job interview.
+            systemContent = `You are an AI assistant.
 
-IMPORTANT FORMATTING INSTRUCTIONS:
-- Format ALL responses using proper Markdown
-- For code, ALWAYS use fenced code blocks with language: \`\`\`python, \`\`\`javascript, \`\`\`java, etc.
-- For inline code or variable names, use single backticks: \`variableName\`
-- For mathematical equations, use LaTeX: $x^2$ for inline or $$\\sum_{i=1}^n$$ for block
-- Use **bold** for emphasis, use bullet points and numbered lists
-- Use headings (## or ###) to organize longer answers
-- Do NOT use plain text for code - ALWAYS format properly
+FORMATTING:
+- Use proper Markdown formatting
+- For code, use fenced code blocks with language
+- Use **bold** for emphasis and bullet points for lists
 
 RESPONSE STYLE:
-- Provide ONLY direct answers to interview questions
-- Do NOT include fillers like "Here is the answer" or "Sure"
-- Keep responses concise and interview-appropriate`;
+- Be helpful, clear, and concise
+- Provide direct answers`;
 
-            // Add resume if available
             if (resumeText) {
-                systemContent += `\n\nUser's Resume/Background:\n${resumeText}`;
+                systemContent += `\n\nUser's Background:\n${resumeText}`;
             }
         }
 
@@ -51,21 +86,12 @@ Name: ${userProfile.name}
 Education: ${userProfile.education}
 Skills: ${userProfile.skills}
 Experience: ${userProfile.experience}`;
-
             if (userProfile.projects) {
                 systemContent += `\nProjects: ${userProfile.projects}`;
             }
-
-            systemContent += `\n\nWhen asked "tell me about yourself" or similar questions, use this background information to provide a concise professional introduction.
-For technical questions, answer the question directly and accurately. ONLY refer to the user's background if it is specifically relevant to the question (e.g., "How have you used React?"). Do NOT force the user's background into every answer.`;
         }
 
-        const systemMessage = {
-            role: 'system',
-            content: systemContent
-        };
-
-        const apiMessages = [systemMessage, ...messages];
+        const apiMessages = [{ role: 'system', content: systemContent }, ...messages];
 
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
@@ -89,6 +115,36 @@ For technical questions, answer the question directly and accurately. ONLY refer
     } catch (error: any) {
         console.error('Groq API Error:', error);
         throw new Error(error.message || 'Network error');
+    }
+};
+
+// Get current active assistant info
+export const getActiveAssistant = (): { name: string; mode: string } | null => {
+    const savedAssistants = localStorage.getItem('aiAssistants');
+    const activeAssistantId = localStorage.getItem('activeAssistantId');
+
+    if (savedAssistants && activeAssistantId) {
+        const assistants = JSON.parse(savedAssistants);
+        const active = assistants.find((a: any) => a.id === activeAssistantId);
+        if (active) {
+            return { name: active.name, mode: active.mode };
+        }
+    }
+    return null;
+};
+
+// Get all assistants
+export const getAllAssistants = (): Array<{ id: string; name: string; mode: string }> => {
+    const saved = localStorage.getItem('aiAssistants');
+    return saved ? JSON.parse(saved) : [];
+};
+
+// Set active assistant
+export const setActiveAssistant = (id: string | null) => {
+    if (id) {
+        localStorage.setItem('activeAssistantId', id);
+    } else {
+        localStorage.removeItem('activeAssistantId');
     }
 };
 

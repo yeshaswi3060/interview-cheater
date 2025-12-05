@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
         const [channel, ...omit] = args
         return ipcRenderer.off(channel, ...omit)
     },
+    removeListener(...args: Parameters<typeof ipcRenderer.removeListener>) {
+        const [channel, listener] = args
+        return ipcRenderer.removeListener(channel, listener)
+    },
     send(...args: Parameters<typeof ipcRenderer.send>) {
         const [channel, ...omit] = args
         return ipcRenderer.send(channel, ...omit)

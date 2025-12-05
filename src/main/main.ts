@@ -118,6 +118,24 @@ if (!gotTheLock) {
                     }
                 }
             })
+
+            // Global shortcut for Snipping Tool (Ctrl+Shift+C)
+            globalShortcut.register('CommandOrControl+Shift+C', () => {
+                if (win) {
+                    win.show();
+                    win.focus();
+                    win.webContents.send('global-shortcut', 'snip');
+                }
+            })
+
+            // Global shortcut for Transcription Toggle (Ctrl+Shift+T)
+            globalShortcut.register('CommandOrControl+Shift+T', () => {
+                if (win) {
+                    win.show();
+                    win.focus();
+                    win.webContents.send('global-shortcut', 'transcribe');
+                }
+            })
         });
 
         ipcMain.handle('DESKTOP_CAPTURER_GET_SOURCES', async (_event, opts) => {
