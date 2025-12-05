@@ -1097,3 +1097,514 @@
 .btn-danger:hover {
     background: rgba(255, 60, 60, 1);
 }
+
+/* Create Assistant Button */
+.create-assistant-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 16px;
+    margin-bottom: 20px;
+    background: rgba(100, 126, 234, 0.1);
+    border: 1px dashed rgba(100, 126, 234, 0.3);
+    border-radius: 12px;
+    color: rgba(100, 126, 234, 0.9);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.create-assistant-btn:hover {
+    background: rgba(100, 126, 234, 0.15);
+    border-color: rgba(100, 126, 234, 0.5);
+}
+
+.create-assistant-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Assistants List */
+.assistants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.assistant-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    transition: all 0.15s ease;
+}
+
+.assistant-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.assistant-card.active {
+    background: rgba(80, 200, 120, 0.08);
+    border-color: rgba(80, 200, 120, 0.2);
+}
+
+.assistant-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.assistant-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.assistant-mode {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: capitalize;
+}
+
+.assistant-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.active-badge {
+    padding: 4px 10px;
+    background: rgba(80, 200, 120, 0.2);
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(80, 200, 120, 0.9);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-activate {
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-activate:hover {
+    background: rgba(100, 126, 234, 0.2);
+    border-color: rgba(100, 126, 234, 0.3);
+    color: #fff;
+}
+
+.btn-delete {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 100, 100, 0.5);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.btn-delete:hover {
+    background: rgba(255, 100, 100, 0.15);
+    color: rgba(255, 100, 100, 0.9);
+}
+
+.btn-delete svg {
+    width: 14px;
+    height: 14px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 13px;
+}
+
+.test-section {
+    margin-top: 20px;
+}
+
+/* Create Modal */
+.create-modal {
+    max-width: 480px;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.preset-btn {
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preset-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.preset-btn.active {
+    background: rgba(100, 126, 234, 0.15);
+    border-color: rgba(100, 126, 234, 0.3);
+    color: rgba(100, 126, 234, 0.9);
+}
+
+/* Resume Upload */
+.resume-upload-area {
+    margin-bottom: 20px;
+}
+
+.upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.upload-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.upload-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.file-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.context-indicator.success {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(80, 200, 120, 0.08);
+    border: 1px solid rgba(80, 200, 120, 0.15);
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 12px;
+    color: rgba(80, 200, 120, 0.9);
+}
+
+.context-indicator svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Premium Assistant Cards Grid */
+.assistants-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.assistant-card-premium {
+    background: linear-gradient(135deg, rgba(30, 30, 35, 0.9), rgba(20, 20, 25, 0.95));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 16px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.assistant-card-premium::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+}
+
+.assistant-card-premium.active::before {
+    background: linear-gradient(90deg, rgba(80, 200, 120, 0.8), rgba(80, 200, 120, 0.3));
+}
+
+.assistant-card-premium.inactive {
+    opacity: 0.7;
+}
+
+.assistant-card-premium:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+}
+
+.assistant-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 12px;
+}
+
+.assistant-icon {
+    font-size: 28px;
+}
+
+.delete-btn {
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 100, 100, 0.4);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.15s;
+}
+
+.assistant-card-premium:hover .delete-btn {
+    opacity: 1;
+}
+
+.delete-btn:hover {
+    background: rgba(255, 100, 100, 0.15);
+    color: rgba(255, 100, 100, 0.9);
+}
+
+.delete-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.assistant-card-body h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+}
+
+.mode-tag {
+    display: inline-block;
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: capitalize;
+}
+
+.assistant-card-footer {
+    margin-top: 14px;
+}
+
+.toggle-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+}
+
+.toggle-btn.active {
+    background: rgba(80, 200, 120, 0.2);
+    color: rgba(80, 200, 120, 0.9);
+}
+
+.toggle-btn.inactive {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.toggle-btn:hover {
+    transform: scale(1.02);
+}
+
+.toggle-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Active Assistant Info */
+.active-assistant-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(80, 200, 120, 0.08);
+    border: 1px solid rgba(80, 200, 120, 0.15);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.active-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: rgba(80, 200, 120, 0.9);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: rgba(80, 200, 120, 0.9);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.btn-test {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid rgba(80, 200, 120, 0.3);
+    border-radius: 6px;
+    color: rgba(80, 200, 120, 0.9);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-test:hover:not(:disabled) {
+    background: rgba(80, 200, 120, 0.1);
+}
+
+.btn-test:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.empty-state p {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 6px;
+}
+
+.empty-state span {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+/* Preset Cards */
+.preset-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preset-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.preset-card.active {
+    background: rgba(100, 126, 234, 0.15);
+    border-color: rgba(100, 126, 234, 0.3);
+    color: #fff;
+}
+
+.preset-icon {
+    font-size: 22px;
+}
+
+/* Info Banner */
+.info-banner {
+    display: flex;
+    align-items: start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(100, 150, 255, 0.08);
+    border: 1px solid rgba(100, 150, 255, 0.15);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 11px;
+    color: rgba(100, 150, 255, 0.9);
+    line-height: 1.5;
+}
+
+/* Error Hint */
+.error-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: rgba(255, 100, 100, 0.9);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top-color: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}

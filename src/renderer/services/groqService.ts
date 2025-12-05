@@ -1,7 +1,29 @@
 export const testGroqConnection = async (apiKey: string, messages: Array<{ role: string, content: string }>, userProfile?: any) => {
     try {
-        // Create system message with interview context and user profile
-        let systemContent = `You are an AI interview assistant helping the user during a job interview.
+        // Check for active AI assistant from Settings
+        const savedAssistants = localStorage.getItem('aiAssistants');
+        const activeAssistantId = localStorage.getItem('activeAssistantId');
+        const resumeText = localStorage.getItem('resumeText') || '';
+
+        let systemContent = '';
+
+        // Check if there's a custom active assistant
+        if (savedAssistants && activeAssistantId) {
+            const assistants = JSON.parse(savedAssistants);
+            const activeAssistant = assistants.find((a: any) => a.id === activeAssistantId);
+            if (activeAssistant) {
+                systemContent = activeAssistant.systemPrompt;
+
+                // Add resume context if available
+                if (resumeText) {
+                    systemContent += `\n\nUser's Resume/Background:\n${resumeText}`;
+                }
+            }
+        }
+
+        // Fall back to default if no custom assistant
+        if (!systemContent) {
+            systemContent = `You are an AI interview assistant helping the user during a job interview.
 
 IMPORTANT FORMATTING INSTRUCTIONS:
 - Format ALL responses using proper Markdown
@@ -17,8 +39,14 @@ RESPONSE STYLE:
 - Do NOT include fillers like "Here is the answer" or "Sure"
 - Keep responses concise and interview-appropriate`;
 
+            // Add resume if available
+            if (resumeText) {
+                systemContent += `\n\nUser's Resume/Background:\n${resumeText}`;
+            }
+        }
+
         if (userProfile) {
-            systemContent += `\n\nUSER BACKGROUND:
+            systemContent += `\n\nUSER PROFILE:
 Name: ${userProfile.name}
 Education: ${userProfile.education}
 Skills: ${userProfile.skills}

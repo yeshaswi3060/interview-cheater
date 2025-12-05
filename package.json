@@ -14,6 +14,7 @@
     "firebase": "^12.6.0",
     "hark": "^1.2.3",
     "katex": "^0.16.25",
+    "pdfjs-dist": "^5.4.449",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
