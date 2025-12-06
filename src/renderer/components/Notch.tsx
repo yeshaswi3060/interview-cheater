@@ -157,6 +157,9 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
     const [currentMode, setCurrentMode] = useState<{ name: string; mode: string } | null>(() => getActiveAssistant());
     const [allAssistants, setAllAssistants] = useState(() => getAllAssistants());
 
+    // Conversation history per mode (persists during session, clears on restart)
+    const [conversationsByMode, setConversationsByMode] = useState<{ [key: string]: Array<{ role: string; content: string }> }>({});
+
     const inputRef = useRef<HTMLInputElement>(null);
     const responseIdRef = useRef(0);
     const transcriptIdRef = useRef(0);
@@ -231,8 +234,24 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
             setQuery('');
 
             try {
-                const result = await testGroqConnection(apiKeys.groq, [{ role: 'user', content: userQuery }]);
+                // Get current mode ID for conversation tracking
+                const modeId = currentMode?.name || 'default';
+
+                // Get existing conversation history for this mode
+                const existingHistory = conversationsByMode[modeId] || [];
+
+                // Add user message to history
+                const updatedHistory = [...existingHistory, { role: 'user', content: userQuery }];
+
+                // Send full history to Groq
+                const result = await testGroqConnection(apiKeys.groq, updatedHistory);
                 setCurrentResponse(result);
+
+                // Save updated history with assistant response
+                setConversationsByMode(prev => ({
+                    ...prev,
+                    [modeId]: [...updatedHistory, { role: 'assistant', content: result }]
+                }));
             } catch (err: any) {
                 setCurrentResponse(`Error: ${err.message}`);
             } finally {
@@ -242,7 +261,7 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
             setCurrentResponse(null);
             setOcrText(null);
         }
-    }, [query, currentResponse, apiKeys.groq]);
+    }, [query, currentResponse, apiKeys.groq, currentMode, conversationsByMode]);
 
     const handleStartSnipping = useCallback(async () => {
         try {
@@ -301,35 +320,55 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
         if (!ocrText) return;
         setLoading(true);
         setCurrentResponse(null);
+        const textToExplain = ocrText;
         setOcrText(null);
 
         try {
-            const prompt = `Please explain this in detail:\n\n${ocrText}`;
-            const result = await testGroqConnection(apiKeys.groq, [{ role: 'user', content: prompt }]);
+            const modeId = currentMode?.name || 'default';
+            const existingHistory = conversationsByMode[modeId] || [];
+            const prompt = `Please explain this in detail:\n\n${textToExplain}`;
+            const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
+
+            const result = await testGroqConnection(apiKeys.groq, updatedHistory);
             setCurrentResponse(result);
+
+            setConversationsByMode(prev => ({
+                ...prev,
+                [modeId]: [...updatedHistory, { role: 'assistant', content: result }]
+            }));
         } catch (err: any) {
             setCurrentResponse(`Error: ${err.message}`);
         } finally {
             setLoading(false);
         }
-    }, [ocrText, apiKeys.groq]);
+    }, [ocrText, apiKeys.groq, currentMode, conversationsByMode]);
 
     const handleSolve = useCallback(async () => {
         if (!ocrText) return;
         setLoading(true);
         setCurrentResponse(null);
+        const textToSolve = ocrText;
         setOcrText(null);
 
         try {
-            const prompt = `Please solve this step by step, showing all work:\n\n${ocrText}`;
-            const result = await testGroqConnection(apiKeys.groq, [{ role: 'user', content: prompt }]);
+            const modeId = currentMode?.name || 'default';
+            const existingHistory = conversationsByMode[modeId] || [];
+            const prompt = `Please solve this step by step, showing all work:\n\n${textToSolve}`;
+            const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
+
+            const result = await testGroqConnection(apiKeys.groq, updatedHistory);
             setCurrentResponse(result);
+
+            setConversationsByMode(prev => ({
+                ...prev,
+                [modeId]: [...updatedHistory, { role: 'assistant', content: result }]
+            }));
         } catch (err: any) {
             setCurrentResponse(`Error: ${err.message}`);
         } finally {
             setLoading(false);
         }
-    }, [ocrText, apiKeys.groq]);
+    }, [ocrText, apiKeys.groq, currentMode, conversationsByMode]);
 
     const dismissOcr = useCallback(() => setOcrText(null), []);
 
@@ -378,20 +417,29 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
         setCurrentResponse(null);
 
         try {
+            const modeId = currentMode?.name || 'default';
+            const existingHistory = conversationsByMode[modeId] || [];
+
             const prompt = `You are helping someone in a job interview. The interviewer just asked the following question. Provide a clear, professional, and concise answer that would impress the interviewer. Be direct and confident.
 
 Interviewer's question: "${transcriptText}"
 
 Provide the best answer:`;
 
-            const result = await testGroqConnection(apiKeys.groq, [{ role: 'user', content: prompt }]);
+            const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
+            const result = await testGroqConnection(apiKeys.groq, updatedHistory);
             setCurrentResponse(result);
+
+            setConversationsByMode(prev => ({
+                ...prev,
+                [modeId]: [...updatedHistory, { role: 'assistant', content: result }]
+            }));
         } catch (err: any) {
             setCurrentResponse(`Error: ${err.message}`);
         } finally {
             setLoading(false);
         }
-    }, [currentResponse, apiKeys.groq]);
+    }, [currentResponse, apiKeys.groq, currentMode, conversationsByMode]);
 
     const clearCurrentResponse = useCallback(() => setCurrentResponse(null), []);
 
