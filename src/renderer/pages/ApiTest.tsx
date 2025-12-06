@@ -10,7 +10,7 @@ import { startLiveTranscription, stopLiveTranscription } from '../services/trans
 import SnippingTool from '../components/SnippingTool';
 
 interface ApiTestProps {
-    apiKeys: { groq: string; gemini: string };
+    apiKeys: { groq: string; groq2: string };
     userProfile?: any;
     onFinish: () => void;
     onBack: () => void;
@@ -34,6 +34,7 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKeys, userProfile, onFinish, onBac
 
     // Test Statuses
     const [groqStatus, setGroqStatus] = useState<'pending' | 'success' | 'failure'>('pending');
+    const [groq2Status, setGroq2Status] = useState<'pending' | 'success' | 'failure'>('pending');
     const [ocrStatus, setOcrStatus] = useState<'pending' | 'success' | 'failure'>('pending');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -72,6 +73,22 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKeys, userProfile, onFinish, onBac
         } catch (err: any) {
             addLog(`Groq Error: ${err.message}`, 'system');
             setGroqStatus('failure');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGroq2Test = async () => {
+        setLoading(true);
+        addLog('Testing GROQ #2 (Audio Analysis API)...', 'system');
+
+        try {
+            const response = await testGroqConnection(apiKeys.groq2, [{ role: 'user', content: 'Say hello briefly. This is a connection test for the audio analysis API.' }]);
+            addLog(`GROQ #2 Response: ${response}`, 'assistant');
+            setGroq2Status('success');
+        } catch (err: any) {
+            addLog(`GROQ #2 Error: ${err.message}`, 'system');
+            setGroq2Status('failure');
         } finally {
             setLoading(false);
         }
@@ -218,8 +235,10 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKeys, userProfile, onFinish, onBac
 
             <h2 style={{ marginBottom: '10px', fontWeight: '300', letterSpacing: '1px' }}>SYSTEM CHECK</h2>
 
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 <span style={{ color: groqStatus === 'success' ? '#4caf50' : groqStatus === 'failure' ? '#f44336' : '#888' }}>GROQ: {groqStatus.toUpperCase()}</span>
+                <span style={{ color: '#333' }}>|</span>
+                <span style={{ color: groq2Status === 'success' ? '#4caf50' : groq2Status === 'failure' ? '#f44336' : '#888' }}>GROQ #2: {groq2Status.toUpperCase()}</span>
                 <span style={{ color: '#333' }}>|</span>
                 <span style={{ color: ocrStatus === 'success' ? '#4caf50' : ocrStatus === 'failure' ? '#f44336' : '#888' }}>OCR: {ocrStatus.toUpperCase()}</span>
             </div>
@@ -312,6 +331,7 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKeys, userProfile, onFinish, onBac
                     onKeyDown={(e) => e.key === 'Enter' && handleGroqTest()}
                 />
                 <button onClick={handleGroqTest} disabled={loading || !message.trim()} style={buttonStyle}>TEST GROQ</button>
+                <button onClick={handleGroq2Test} disabled={loading} style={buttonStyle}>TEST GROQ #2</button>
                 <button onClick={handleStartSnipping} disabled={loading} style={buttonStyle}>SELECT AREA</button>
                 <button
                     onClick={toggleLiveTranscription}
@@ -330,12 +350,12 @@ const ApiTest: React.FC<ApiTestProps> = ({ apiKeys, userProfile, onFinish, onBac
                 <button onClick={onBack} style={secondaryButtonStyle}>BACK</button>
                 <button
                     onClick={onFinish}
-                    disabled={groqStatus !== 'success' || ocrStatus !== 'success'}
+                    disabled={groqStatus !== 'success' || groq2Status !== 'success' || ocrStatus !== 'success'}
                     style={{
                         ...primaryButtonStyle,
-                        background: (groqStatus === 'success' && ocrStatus === 'success') ? '#fff' : '#333',
-                        color: (groqStatus === 'success' && ocrStatus === 'success') ? '#000' : '#888',
-                        cursor: (groqStatus === 'success' && ocrStatus === 'success') ? 'pointer' : 'not-allowed'
+                        background: (groqStatus === 'success' && groq2Status === 'success' && ocrStatus === 'success') ? '#fff' : '#333',
+                        color: (groqStatus === 'success' && groq2Status === 'success' && ocrStatus === 'success') ? '#000' : '#888',
+                        cursor: (groqStatus === 'success' && groq2Status === 'success' && ocrStatus === 'success') ? 'pointer' : 'not-allowed'
                     }}
                 >
                     FINISH

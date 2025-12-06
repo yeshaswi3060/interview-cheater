@@ -14,7 +14,7 @@ import { startLiveTranscription, stopLiveTranscription } from '../services/trans
 import SnippingTool from './SnippingTool';
 
 interface NotchProps {
-    apiKeys: { groq: string; gemini: string };
+    apiKeys: { groq: string; groq2: string };
     onExit: () => void;
     onSettings: () => void;
 }

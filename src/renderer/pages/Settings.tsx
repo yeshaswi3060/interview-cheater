@@ -7,10 +7,11 @@ import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface SettingsProps {
-    apiKeys: { groq: string; gemini: string };
+    apiKeys: { groq: string; groq2: string };
     userProfile: any;
     onBack: () => void;
-    onUpdateApiKeys: (keys: { groq: string; gemini: string }) => void;
+    onLogout: () => void;
+    onUpdateApiKeys: (keys: { groq: string; groq2: string }) => void;
     onUpdateProfile: (profile: any) => void;
 }
 
@@ -56,6 +57,7 @@ const Settings: React.FC<SettingsProps> = memo(({
     apiKeys,
     userProfile,
     onBack,
+    onLogout,
     onUpdateApiKeys,
     onUpdateProfile
 }) => {
@@ -600,8 +602,12 @@ const Settings: React.FC<SettingsProps> = memo(({
                     ))}
                 </nav>
                 <div className="settings-sidebar-footer">
-                    <button className="quit-btn" onClick={() => setShowQuitModal(true)}>
+                    <button className="logout-btn" onClick={onLogout}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16,17 21,12 16,7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                        <span>Logout</span>
+                    </button>
+                    <button className="quit-btn" onClick={() => setShowQuitModal(true)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18.36 6.64a9 9 0 11-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg>
                         <span>Quit App</span>
                     </button>
                     <span className="version">v1.0.0</span>

@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 
 interface ApiKeyInputProps {
-    onNext: (keys: { groq: string; gemini: string }) => void;
+    onNext: (keys: { groq: string; groq2: string }) => void;
 }
 
 const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onNext }) => {
     const [groqKey, setGroqKey] = useState('');
-    const [geminiKey, setGeminiKey] = useState('');
+    const [groq2Key, setGroq2Key] = useState('');
 
     const handleNext = () => {
-        if (groqKey.trim() && geminiKey.trim()) {
+        if (groqKey.trim() && groq2Key.trim()) {
             onNext({
                 groq: groqKey.trim(),
-                gemini: geminiKey.trim()
+                groq2: groq2Key.trim()
             });
         }
     };
@@ -54,12 +54,12 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onNext }) => {
                 </div>
 
                 <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#aaa' }}>GEMINI API KEY (VISION)</label>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#aaa' }}>GROQ API KEY #2 (AUDIO ANALYSIS)</label>
                     <input
                         type="password"
-                        value={geminiKey}
-                        onChange={(e) => setGeminiKey(e.target.value)}
-                        placeholder="AIza..."
+                        value={groq2Key}
+                        onChange={(e) => setGroq2Key(e.target.value)}
+                        placeholder="gsk_..."
                         style={{
                             width: '100%',
                             padding: '12px',
@@ -76,14 +76,14 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onNext }) => {
 
             <button
                 onClick={handleNext}
-                disabled={!groqKey.trim() || !geminiKey.trim()}
+                disabled={!groqKey.trim() || !groq2Key.trim()}
                 style={{
                     padding: '12px 40px',
-                    background: (groqKey.trim() && geminiKey.trim()) ? '#ffffff' : '#333333',
-                    color: (groqKey.trim() && geminiKey.trim()) ? '#000000' : '#888888',
+                    background: (groqKey.trim() && groq2Key.trim()) ? '#ffffff' : '#333333',
+                    color: (groqKey.trim() && groq2Key.trim()) ? '#000000' : '#888888',
                     border: 'none',
                     borderRadius: '4px',
-                    cursor: (groqKey.trim() && geminiKey.trim()) ? 'pointer' : 'not-allowed',
+                    cursor: (groqKey.trim() && groq2Key.trim()) ? 'pointer' : 'not-allowed',
                     fontSize: '14px',
                     fontWeight: '500',
                     letterSpacing: '1px',

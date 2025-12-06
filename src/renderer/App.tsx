@@ -33,7 +33,7 @@ function App() {
     const [showProfileInput, setShowProfileInput] = useState(false)
 
     // API Key state
-    const [apiKeys, setApiKeys] = useState({ groq: '', gemini: '' })
+    const [apiKeys, setApiKeys] = useState({ groq: '', groq2: '' })
     const [showApiKeyInput, setShowApiKeyInput] = useState(false)
     const [showApiTest, setShowApiTest] = useState(false)
 
@@ -51,7 +51,7 @@ function App() {
         const savedResponseLangs = JSON.parse(localStorage.getItem('responseLanguages') || '[]')
         const savedProfile = JSON.parse(localStorage.getItem('userProfile') || 'null')
         const savedGroqKey = localStorage.getItem('groqApiKey') || ''
-        const savedGeminiKey = localStorage.getItem('geminiApiKey') || ''
+        const savedGroq2Key = localStorage.getItem('groq2ApiKey') || ''
 
         if (isLoggedIn) {
             setIsAuthenticated(true)
@@ -64,8 +64,8 @@ function App() {
                 if (savedProfile) {
                     setUserProfile(savedProfile)
 
-                    if (savedGroqKey && savedGeminiKey) {
-                        setApiKeys({ groq: savedGroqKey, gemini: savedGeminiKey })
+                    if (savedGroqKey && savedGroq2Key) {
+                        setApiKeys({ groq: savedGroqKey, groq2: savedGroq2Key })
                     } else {
                         // If profile is set but API keys are missing, go to API key input
                         setShowApiKeyInput(true)
@@ -104,14 +104,14 @@ function App() {
         localStorage.removeItem('responseLanguages')
         localStorage.removeItem('userProfile')
         localStorage.removeItem('groqApiKey')
-        localStorage.removeItem('geminiApiKey')
+        localStorage.removeItem('groq2ApiKey')
 
         setIsAuthenticated(false)
         setUserEmail('')
         setInputLanguages([])
         setResponseLanguages([])
         setUserProfile(null)
-        setApiKeys({ groq: '', gemini: '' })
+        setApiKeys({ groq: '', groq2: '' })
         setShowInputLangSelect(false)
         setShowResponseLangSelect(false)
         setShowProfileInput(false)
@@ -151,7 +151,7 @@ function App() {
         setShowProfileInput(true)
     }
 
-    const handleApiKeySubmitted = (keys: { groq: string; gemini: string }) => {
+    const handleApiKeySubmitted = (keys: { groq: string; groq2: string }) => {
         setApiKeys(keys)
         setShowApiKeyInput(false)
         setShowApiTest(true)
@@ -159,7 +159,7 @@ function App() {
 
     const handleApiTestFinished = () => {
         localStorage.setItem('groqApiKey', apiKeys.groq)
-        localStorage.setItem('geminiApiKey', apiKeys.gemini)
+        localStorage.setItem('groq2ApiKey', apiKeys.groq2)
         setShowApiTest(false)
         // Flow complete, show Notch UI
         setShowNotch(true)
@@ -185,7 +185,7 @@ function App() {
         setShowNotch(true)
     }
 
-    const handleUpdateApiKeys = (keys: { groq: string; gemini: string }) => {
+    const handleUpdateApiKeys = (keys: { groq: string; groq2: string }) => {
         setApiKeys(keys)
     }
 
@@ -295,6 +295,7 @@ function App() {
                     apiKeys={apiKeys}
                     userProfile={userProfile}
                     onBack={handleBackFromSettings}
+                    onLogout={handleLogout}
                     onUpdateApiKeys={handleUpdateApiKeys}
                     onUpdateProfile={handleUpdateProfile}
                 />
