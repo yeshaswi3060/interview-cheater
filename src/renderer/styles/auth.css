@@ -185,3 +185,78 @@
 .link-button:hover {
     opacity: 0.8;
 }
+
+/* Divider */
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 8px 0;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #333333;
+}
+
+.divider span {
+    padding: 0 16px;
+    color: #666666;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Google Button */
+.google-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: transparent;
+    border: 1px solid #333333;
+    padding: 16px;
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.google-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #666666;
+}
+
+.google-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.google-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Disabled States */
+.auth-button:disabled,
+.google-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.form-group input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.link-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
 import Loading from './components/Loading'
 import TitleBar from './components/TitleBar'
+import Onboarding from './components/Onboarding'
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'))
@@ -11,8 +12,6 @@ const Notes = lazy(() => import('./pages/Notes'))
 const InputLanguageSelection = lazy(() => import('./pages/InputLanguageSelection'))
 const ResponseLanguageSelection = lazy(() => import('./pages/ResponseLanguageSelection'))
 const ProfileInput = lazy(() => import('./pages/ProfileInput'))
-const ApiKeyInput = lazy(() => import('./pages/ApiKeyInput'))
-const ApiTest = lazy(() => import('./pages/ApiTest'))
 const Notch = lazy(() => import('./components/Notch'))
 const Settings = lazy(() => import('./pages/Settings'))
 
@@ -32,26 +31,22 @@ function App() {
     const [userProfile, setUserProfile] = useState<any>(null)
     const [showProfileInput, setShowProfileInput] = useState(false)
 
-    // API Key state
-    const [apiKeys, setApiKeys] = useState({ groq: '', groq2: '' })
-    const [showApiKeyInput, setShowApiKeyInput] = useState(false)
-    const [showApiTest, setShowApiTest] = useState(false)
-
     // Notch Mode state
     const [showNotch, setShowNotch] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
+
+    // Onboarding state
+    const [showOnboarding, setShowOnboarding] = useState(false)
 
     // Check if user is already logged in on mount
     useEffect(() => {
         const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'
         const email = localStorage.getItem('userEmail') || ''
 
-        // Check for saved languages, profile, and API keys
+        // Check for saved languages and profile
         const savedInputLangs = JSON.parse(localStorage.getItem('inputLanguages') || '[]')
         const savedResponseLangs = JSON.parse(localStorage.getItem('responseLanguages') || '[]')
         const savedProfile = JSON.parse(localStorage.getItem('userProfile') || 'null')
-        const savedGroqKey = localStorage.getItem('groqApiKey') || ''
-        const savedGroq2Key = localStorage.getItem('groq2ApiKey') || ''
 
         if (isLoggedIn) {
             setIsAuthenticated(true)
@@ -63,13 +58,7 @@ function App() {
 
                 if (savedProfile) {
                     setUserProfile(savedProfile)
-
-                    if (savedGroqKey && savedGroq2Key) {
-                        setApiKeys({ groq: savedGroqKey, groq2: savedGroq2Key })
-                    } else {
-                        // If profile is set but API keys are missing, go to API key input
-                        setShowApiKeyInput(true)
-                    }
+                    // API keys are now hardcoded, no need to check localStorage
                 } else {
                     // If languages are set but profile is missing, go to profile input
                     setShowProfileInput(true)
@@ -103,20 +92,15 @@ function App() {
         localStorage.removeItem('inputLanguages')
         localStorage.removeItem('responseLanguages')
         localStorage.removeItem('userProfile')
-        localStorage.removeItem('groqApiKey')
-        localStorage.removeItem('groq2ApiKey')
 
         setIsAuthenticated(false)
         setUserEmail('')
         setInputLanguages([])
         setResponseLanguages([])
         setUserProfile(null)
-        setApiKeys({ groq: '', groq2: '' })
         setShowInputLangSelect(false)
         setShowResponseLangSelect(false)
         setShowProfileInput(false)
-        setShowApiKeyInput(false)
-        setShowApiTest(false)
         setShowNotch(false)
     }
 
@@ -143,36 +127,23 @@ function App() {
         setUserProfile(profile)
         localStorage.setItem('userProfile', JSON.stringify(profile))
         setShowProfileInput(false)
-        setShowApiKeyInput(true)
+
+        // Check if onboarding is completed
+        const onboardingDone = localStorage.getItem('onboardingComplete') === 'true'
+        if (onboardingDone) {
+            setShowNotch(true)
+        } else {
+            setShowOnboarding(true)
+        }
     }
 
-    const handleBackToProfileInput = () => {
-        setShowApiKeyInput(false)
-        setShowProfileInput(true)
-    }
-
-    const handleApiKeySubmitted = (keys: { groq: string; groq2: string }) => {
-        setApiKeys(keys)
-        setShowApiKeyInput(false)
-        setShowApiTest(true)
-    }
-
-    const handleApiTestFinished = () => {
-        localStorage.setItem('groqApiKey', apiKeys.groq)
-        localStorage.setItem('groq2ApiKey', apiKeys.groq2)
-        setShowApiTest(false)
-        // Flow complete, show Notch UI
-        setShowNotch(true)
-    }
-
-    const handleBackToApiKeyInput = () => {
-        setShowApiTest(false)
-        setShowApiKeyInput(true)
+    const handleOnboardingComplete = () => {
+        setShowOnboarding(false)
+        // Don't set showNotch - user will see the Launch Gogly page
     }
 
     const handleExitNotch = () => {
         setShowNotch(false)
-        // Optionally go back to dashboard or some other state
     }
 
     const handleOpenSettings = () => {
@@ -183,10 +154,6 @@ function App() {
     const handleBackFromSettings = () => {
         setShowSettings(false)
         setShowNotch(true)
-    }
-
-    const handleUpdateApiKeys = (keys: { groq: string; groq2: string }) => {
-        setApiKeys(keys)
     }
 
     const handleUpdateProfile = (profile: any) => {
@@ -260,54 +227,30 @@ function App() {
         )
     }
 
-    // API Key Flow
-    if (showApiKeyInput) {
-        return (
-            <>
-                <TitleBar />
-                <div style={{ marginTop: '30px' }}>
-                    <Suspense fallback={<Loading />}>
-                        <ApiKeyInput onNext={handleApiKeySubmitted} />
-                    </Suspense>
-                </div>
-            </>
-        )
-    }
-
-    if (showApiTest) {
-        return (
-            <>
-                <TitleBar />
-                <div style={{ marginTop: '30px' }}>
-                    <Suspense fallback={<Loading />}>
-                        <ApiTest apiKeys={apiKeys} userProfile={userProfile} onFinish={handleApiTestFinished} onBack={handleBackToApiKeyInput} />
-                    </Suspense>
-                </div>
-            </>
-        )
-    }
-
     // Settings Page
     if (showSettings) {
         return (
             <Suspense fallback={<Loading />}>
                 <Settings
-                    apiKeys={apiKeys}
                     userProfile={userProfile}
                     onBack={handleBackFromSettings}
                     onLogout={handleLogout}
-                    onUpdateApiKeys={handleUpdateApiKeys}
                     onUpdateProfile={handleUpdateProfile}
                 />
             </Suspense>
         )
     }
 
+    // Onboarding Tutorial (first-time users)
+    if (showOnboarding) {
+        return <Onboarding onComplete={handleOnboardingComplete} />
+    }
+
     // Notch Mode
     if (showNotch) {
         return (
             <Suspense fallback={<Loading />}>
-                <Notch apiKeys={apiKeys} onExit={handleExitNotch} onSettings={handleOpenSettings} />
+                <Notch onExit={handleExitNotch} onSettings={handleOpenSettings} />
             </Suspense>
         )
     }
@@ -318,7 +261,8 @@ function App() {
             <TitleBar />
             <div className="app-container" style={{ background: '#000000', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 30px)', marginTop: '30px' }}>
                 <div style={{ textAlign: 'center' }}>
-                    <h1 style={{ fontSize: '24px', fontWeight: '300', letterSpacing: '2px' }}>LOGGED IN</h1>
+                    <h1 style={{ fontSize: '32px', fontWeight: '700', letterSpacing: '4px', marginBottom: '5px' }}>GOGLY</h1>
+                    <p style={{ fontSize: '11px', color: '#666', letterSpacing: '3px', marginBottom: '20px' }}>YESHASWI'S CREATION</p>
                     <div style={{ marginTop: '20px', fontSize: '14px', color: '#888' }}>
                         <p>Input Languages: {inputLanguages.join(', ')}</p>
                         <p>Response Languages: {responseLanguages.join(', ')}</p>
@@ -340,7 +284,7 @@ function App() {
                             marginRight: '10px'
                         }}
                     >
-                        Launch Notch
+                        Launch Gogly
                     </button>
                     <button
                         onClick={handleLogout}

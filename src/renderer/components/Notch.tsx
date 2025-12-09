@@ -7,14 +7,13 @@ import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import '../styles/Notch.css';
-import { testGroqConnection, getActiveAssistant, getAllAssistants, setActiveAssistant } from '../services/groqService';
+import { testGroqConnection, getActiveAssistant, getAllAssistants, setActiveAssistant, detectQuestion } from '../services/groqService';
 import { extractTextFromImage } from '../services/ocrService';
 import { captureScreen } from '../services/mediaCapture';
 import { startLiveTranscription, stopLiveTranscription } from '../services/transcriptionService';
 import SnippingTool from './SnippingTool';
 
 interface NotchProps {
-    apiKeys: { groq: string; groq2: string };
     onExit: () => void;
     onSettings: () => void;
 }
@@ -135,7 +134,7 @@ const MarkdownContent: React.FC<{ content: string }> = memo(({ content }) => (
     </ReactMarkdown>
 ));
 
-const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
+const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
     const [query, setQuery] = useState('');
     const [currentResponse, setCurrentResponse] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -159,6 +158,12 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
 
     // Conversation history per mode (persists during session, clears on restart)
     const [conversationsByMode, setConversationsByMode] = useState<{ [key: string]: Array<{ role: string; content: string }> }>({});
+
+    // Auto-detect questions state
+    const [autoDetectEnabled, setAutoDetectEnabled] = useState(false);
+    const [detectedQuestions, setDetectedQuestions] = useState<Array<{ id: number; text: string }>>([]);
+    const autoDetectRef = useRef<() => void>(() => { });
+    const questionIdRef = useRef(0);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const responseIdRef = useRef(0);
@@ -244,7 +249,7 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
                 const updatedHistory = [...existingHistory, { role: 'user', content: userQuery }];
 
                 // Send full history to Groq
-                const result = await testGroqConnection(apiKeys.groq, updatedHistory);
+                const result = await testGroqConnection('', updatedHistory);
                 setCurrentResponse(result);
 
                 // Save updated history with assistant response
@@ -261,7 +266,7 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
             setCurrentResponse(null);
             setOcrText(null);
         }
-    }, [query, currentResponse, apiKeys.groq, currentMode, conversationsByMode]);
+    }, [query, currentResponse, currentMode, conversationsByMode]);
 
     const handleStartSnipping = useCallback(async () => {
         try {
@@ -329,7 +334,7 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
             const prompt = `Please explain this in detail:\n\n${textToExplain}`;
             const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
 
-            const result = await testGroqConnection(apiKeys.groq, updatedHistory);
+            const result = await testGroqConnection('', updatedHistory);
             setCurrentResponse(result);
 
             setConversationsByMode(prev => ({
@@ -341,7 +346,7 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
         } finally {
             setLoading(false);
         }
-    }, [ocrText, apiKeys.groq, currentMode, conversationsByMode]);
+    }, [ocrText, currentMode, conversationsByMode]);
 
     const handleSolve = useCallback(async () => {
         if (!ocrText) return;
@@ -356,7 +361,7 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
             const prompt = `Please solve this step by step, showing all work:\n\n${textToSolve}`;
             const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
 
-            const result = await testGroqConnection(apiKeys.groq, updatedHistory);
+            const result = await testGroqConnection('', updatedHistory);
             setCurrentResponse(result);
 
             setConversationsByMode(prev => ({
@@ -368,36 +373,122 @@ const Notch: React.FC<NotchProps> = memo(({ apiKeys, onExit, onSettings }) => {
         } finally {
             setLoading(false);
         }
-    }, [ocrText, apiKeys.groq, currentMode, conversationsByMode]);
+    }, [ocrText, currentMode, conversationsByMode]);
 
     const dismissOcr = useCallback(() => setOcrText(null), []);
 
-    const toggleTranscription = useCallback(() => {
+    const toggleTranscription = useCallback(async () => {
         if (isTranscribing) {
-            stopLiveTranscription();
+            // Stop recording and transcribe
             setIsTranscribing(false);
+            const { stopBatchRecording } = await import('../services/transcriptionService');
+            await stopBatchRecording(
+                '',
+                (text) => {
+                    const newId = ++transcriptIdRef.current;
+                    setTranscripts(prev => [...prev, { id: newId, text }]);
+                },
+                (error) => {
+                    const newId = ++transcriptIdRef.current;
+                    setTranscripts(prev => [...prev, { id: newId, text: `Error: ${error}` }]);
+                }
+            );
         } else {
+            // Start recording
             setIsTranscribing(true);
-            setTimeout(() => {
-                startLiveTranscription(
-                    apiKeys.groq,
-                    (text) => {
-                        const newId = ++transcriptIdRef.current;
-                        setTranscripts(prev => [...prev, { id: newId, text }]);
-                    },
-                    (error) => {
-                        const newId = ++transcriptIdRef.current;
-                        setTranscripts(prev => [...prev, { id: newId, text: `Error: ${error}` }]);
-                        setIsTranscribing(false);
-                    }
-                );
-            }, 0);
+            const { startBatchRecording } = await import('../services/transcriptionService');
+            startBatchRecording((error) => {
+                const newId = ++transcriptIdRef.current;
+                setTranscripts(prev => [...prev, { id: newId, text: `Error: ${error}` }]);
+                setIsTranscribing(false);
+            });
         }
-    }, [isTranscribing, apiKeys.groq]);
+    }, [isTranscribing]);
 
     // Keep refs updated with latest callbacks for global shortcuts
     useEffect(() => { snipRef.current = handleStartSnipping; }, [handleStartSnipping]);
     useEffect(() => { transcribeRef.current = toggleTranscription; }, [toggleTranscription]);
+
+    // Toggle auto-detect listening
+    const toggleAutoDetect = useCallback(() => {
+        if (autoDetectEnabled) {
+            // Stop auto-detect
+            stopLiveTranscription();
+            setAutoDetectEnabled(false);
+            setDetectedQuestions([]);
+        } else {
+            // Start auto-detect (background listening)
+            setAutoDetectEnabled(true);
+            console.log('Auto-detect started with GROQ #2 API');
+            startLiveTranscription(
+                '', // API key managed internally
+                async (text) => {
+                    console.log('Transcription received:', text);
+                    // Analyze if this is a question
+                    const result = await detectQuestion('', text);
+                    console.log('Question analysis result:', result);
+                    if (result.isQuestion) {
+                        // Add new question to array (allow multiple)
+                        const newId = ++questionIdRef.current;
+                        console.log('Adding question to list:', result.question);
+                        setDetectedQuestions(prev => [
+                            { id: newId, text: result.question },
+                            ...prev
+                        ].slice(0, 5)); // Keep max 5 questions
+                    }
+                },
+                (error) => {
+                    console.error('Auto-detect error:', error);
+                    setAutoDetectEnabled(false);
+                }
+            );
+        }
+    }, [autoDetectEnabled]);
+
+    // Keep autoDetectRef updated
+    useEffect(() => { autoDetectRef.current = toggleAutoDetect; }, [toggleAutoDetect]);
+
+    // Handle clicking on detected question (answer it)
+    const answerDetectedQuestion = useCallback(async (questionId: number, questionText: string) => {
+        // Remove this question from the list
+        setDetectedQuestions(prev => prev.filter(q => q.id !== questionId));
+
+        // Move current response to left if exists
+        if (currentResponse) {
+            const newId = ++responseIdRef.current;
+            setResponses(prev => [
+                { id: newId, content: currentResponse, isAnimating: false },
+                ...prev
+            ]);
+        }
+
+        setLoading(true);
+        setCurrentResponse(null);
+
+        try {
+            const modeId = currentMode?.name || 'default';
+            const existingHistory = conversationsByMode[modeId] || [];
+
+            const prompt = `You are helping someone in a job interview. The interviewer just asked:
+
+"${questionText}"
+
+Provide a clear, professional, and concise answer that would impress the interviewer. Be direct and confident.`;
+
+            const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
+            const result = await testGroqConnection('', updatedHistory);
+            setCurrentResponse(result);
+
+            setConversationsByMode(prev => ({
+                ...prev,
+                [modeId]: [...updatedHistory, { role: 'assistant', content: result }]
+            }));
+        } catch (err: any) {
+            setCurrentResponse(`Error: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    }, [currentResponse, currentMode, conversationsByMode]);
 
     // Send transcript to AI with interview context
     const sendTranscriptToAI = useCallback(async (transcriptId: number, transcriptText: string) => {
@@ -427,7 +518,7 @@ Interviewer's question: "${transcriptText}"
 Provide the best answer:`;
 
             const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
-            const result = await testGroqConnection(apiKeys.groq, updatedHistory);
+            const result = await testGroqConnection('', updatedHistory);
             setCurrentResponse(result);
 
             setConversationsByMode(prev => ({
@@ -439,7 +530,7 @@ Provide the best answer:`;
         } finally {
             setLoading(false);
         }
-    }, [currentResponse, apiKeys.groq, currentMode, conversationsByMode]);
+    }, [currentResponse, currentMode, conversationsByMode]);
 
     const clearCurrentResponse = useCallback(() => setCurrentResponse(null), []);
 
@@ -559,6 +650,23 @@ Provide the best answer:`;
             <div className="notch-wrapper">
                 <div className="notch-bar" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
                     <button className="notch-dot-btn" onClick={onSettings} title="Settings"><span></span></button>
+                    {/* Auto-detect toggle button */}
+                    <button
+                        className={`notch-icon-btn auto-detect-btn ${autoDetectEnabled ? 'active' : ''}`}
+                        onClick={toggleAutoDetect}
+                        title={autoDetectEnabled ? "Stop Auto-Detect" : "Start Auto-Detect"}
+                    >
+                        {autoDetectEnabled ? (
+                            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                <rect x="6" y="4" width="4" height="16" rx="1" />
+                                <rect x="14" y="4" width="4" height="16" rx="1" />
+                            </svg>
+                        ) : (
+                            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                <polygon points="5,3 19,12 5,21" />
+                            </svg>
+                        )}
+                    </button>
                     <button className="notch-icon-btn" onClick={handleStartSnipping} title="Capture" disabled={loading}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <circle cx="12" cy="12" r="3"></circle>
@@ -595,7 +703,7 @@ Provide the best answer:`;
                         onMouseEnter={() => { handleMouseEnter(); setIsHoveringResponse(true); }}
                         onMouseLeave={() => { handleMouseLeave(); setIsHoveringResponse(false); }}
                     >
-                        <button className="response-close" onClick={clearCurrentResponse}>×</button>
+                        <button className="response-close" onClick={() => { clearCurrentResponse(); handleMouseLeave(); }}>×</button>
                         {loading && !currentResponse ? (
                             <div className="notch-loading">
                                 <div className="notch-spinner"></div>
@@ -609,6 +717,38 @@ Provide the best answer:`;
                     </div>
                 )}
             </div>
+
+            {/* Floating Detected Questions - Multiple Pills */}
+            {detectedQuestions.length > 0 && (
+                <div
+                    className="detected-questions-container"
+                    onMouseLeave={handleMouseLeave}
+                >
+                    {detectedQuestions.map((q) => (
+                        <div
+                            key={q.id}
+                            className="detected-question-pill"
+                            onMouseEnter={handleMouseEnter}
+                            onMouseLeave={handleMouseLeave}
+                        >
+                            <button
+                                className="question-pill-content"
+                                onClick={() => answerDetectedQuestion(q.id, q.text)}
+                                disabled={loading}
+                            >
+                                <span className="question-icon">❓</span>
+                                <span className="question-text">{q.text}</span>
+                            </button>
+                            <button
+                                className="question-pill-close"
+                                onClick={() => { setDetectedQuestions(prev => prev.filter(item => item.id !== q.id)); handleMouseLeave(); }}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* BOTTOM - OCR Panel */}
             {ocrText && (

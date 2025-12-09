@@ -11,6 +11,7 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
     const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 }); // For custom crosshair
     const [image, setImage] = useState<HTMLImageElement | null>(null);
     const [scale, setScale] = useState({ x: 1, y: 1 });
 
@@ -20,20 +21,17 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
         img.onload = () => {
             setImage(img);
             if (canvasRef.current) {
-                // Use actual screen dimensions
                 const screenWidth = window.screen.width;
                 const screenHeight = window.screen.height;
 
                 canvasRef.current.width = screenWidth;
                 canvasRef.current.height = screenHeight;
 
-                // Calculate scale between image and canvas
-                // This handles DPI scaling differences
                 const scaleX = img.naturalWidth / screenWidth;
                 const scaleY = img.naturalHeight / screenHeight;
                 setScale({ x: scaleX, y: scaleY });
 
-                draw(img, { x: 0, y: 0 }, { x: 0, y: 0 }, scaleX, scaleY);
+                draw(img, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: screenWidth / 2, y: screenHeight / 2 }, scaleX, scaleY);
             }
         };
     }, [imageSrc]);
@@ -42,6 +40,7 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
         img: HTMLImageElement,
         start: { x: number, y: number },
         end: { x: number, y: number },
+        mouse: { x: number, y: number },
         scaleX: number = scale.x,
         scaleY: number = scale.y
     ) => {
@@ -85,6 +84,32 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
                 ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
             });
         }
+
+        // Draw custom crosshair at mouse position (visible only to user, not screen share)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 1;
+
+        // Horizontal line
+        ctx.beginPath();
+        ctx.moveTo(mouse.x - 15, mouse.y);
+        ctx.lineTo(mouse.x - 5, mouse.y);
+        ctx.moveTo(mouse.x + 5, mouse.y);
+        ctx.lineTo(mouse.x + 15, mouse.y);
+        ctx.stroke();
+
+        // Vertical line
+        ctx.beginPath();
+        ctx.moveTo(mouse.x, mouse.y - 15);
+        ctx.lineTo(mouse.x, mouse.y - 5);
+        ctx.moveTo(mouse.x, mouse.y + 5);
+        ctx.lineTo(mouse.x, mouse.y + 15);
+        ctx.stroke();
+
+        // Center dot
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 2, 0, Math.PI * 2);
+        ctx.fill();
     };
 
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -96,11 +121,17 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDrawing || !image) return;
         const x = e.clientX;
         const y = e.clientY;
-        setCurrentPos({ x, y });
-        draw(image, startPos, { x, y });
+        setMousePos({ x, y });
+
+        if (isDrawing && image) {
+            setCurrentPos({ x, y });
+            draw(image, startPos, { x, y }, { x, y });
+        } else if (image) {
+            // Just update crosshair position
+            draw(image, startPos, currentPos, { x, y });
+        }
     };
 
     const handleMouseUp = () => {
@@ -120,7 +151,6 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
             return;
         }
 
-        // Create cropped image at original resolution
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = width * scale.x;
         tempCanvas.height = height * scale.y;
@@ -149,7 +179,7 @@ const SnippingTool: React.FC<SnippingToolProps> = ({ imageSrc, onCrop, onCancel 
             width: '100vw',
             height: '100vh',
             zIndex: 9999,
-            cursor: 'crosshair',
+            cursor: 'none',
             background: '#000'
         }}>
             <canvas
@@ -223,3 +253,4 @@ const cancelButtonStyle: React.CSSProperties = {
 };
 
 export default SnippingTool;
+

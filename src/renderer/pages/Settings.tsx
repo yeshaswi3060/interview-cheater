@@ -7,11 +7,9 @@ import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface SettingsProps {
-    apiKeys: { groq: string; groq2: string };
     userProfile: any;
     onBack: () => void;
     onLogout: () => void;
-    onUpdateApiKeys: (keys: { groq: string; groq2: string }) => void;
     onUpdateProfile: (profile: any) => void;
 }
 
@@ -54,11 +52,9 @@ const Icons = {
 };
 
 const Settings: React.FC<SettingsProps> = memo(({
-    apiKeys,
     userProfile,
     onBack,
     onLogout,
-    onUpdateApiKeys,
     onUpdateProfile
 }) => {
     const [activeSection, setActiveSection] = useState<SettingsSection>('keybindings');
@@ -306,7 +302,7 @@ const Settings: React.FC<SettingsProps> = memo(({
         setTestResult(null);
 
         try {
-            const response = await testGroqConnection(apiKeys.groq, [
+            const response = await testGroqConnection('', [
                 { role: 'user', content: 'Say hello and briefly introduce yourself in 1-2 sentences.' }
             ]);
             setTestResult({ success: true, response });
@@ -315,7 +311,7 @@ const Settings: React.FC<SettingsProps> = memo(({
         } finally {
             setTestingAssistant(false);
         }
-    }, [activeAssistantId, apiKeys.groq]);
+    }, [activeAssistantId]);
 
     // PROFILE
     const saveProfile = useCallback(() => {

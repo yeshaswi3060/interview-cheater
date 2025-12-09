@@ -1,4 +1,5 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import path from 'node:path'
 
 process.env.DIST = path.join(__dirname, '../dist')
@@ -41,8 +42,11 @@ function createWindow() {
         thickFrame: false,
     })
 
-    // Optimize rendering
-    win.webContents.setFrameRate(30); // Reduce frame rate to save resources
+    // Set reasonable frame rate (higher for smoother rendering)
+    win.webContents.setFrameRate(30);
+
+    // Additional optimizations
+    win.webContents.setBackgroundThrottling(true);
 
     win.webContents.on('did-finish-load', () => {
         win?.webContents.send('main-process-message', (new Date).toLocaleString())
@@ -56,8 +60,30 @@ function createWindow() {
 
     win.once('ready-to-show', () => {
         win?.show()
+
+        // Check for updates after window is shown (only in production)
+        if (app.isPackaged) {
+            autoUpdater.checkForUpdatesAndNotify()
+        }
     })
 }
+
+// Configure auto-updater for silent auto-install
+autoUpdater.autoDownload = true
+autoUpdater.autoInstallOnAppQuit = true
+
+// Auto-updater event handlers
+autoUpdater.on('update-available', () => {
+    console.log('Update available - downloading...')
+})
+
+autoUpdater.on('update-downloaded', () => {
+    console.log('Update downloaded - will install on next restart')
+})
+
+autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err)
+})
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
@@ -71,8 +97,12 @@ app.on('activate', () => {
     }
 })
 
-// Disable hardware acceleration for lower resource usage (optional)
-// app.disableHardwareAcceleration();
+// Enable high DPI support for sharp rendering
+app.commandLine.appendSwitch('high-dpi-support', '1');
+app.commandLine.appendSwitch('force-device-scale-factor', '1');
+
+// Reduce memory usage with V8 garbage collection
+app.commandLine.appendSwitch('js-flags', '--expose-gc --max-old-space-size=256');
 
 const gotTheLock = app.requestSingleInstanceLock()
 
