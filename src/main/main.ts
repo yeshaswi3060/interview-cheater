@@ -246,6 +246,11 @@ if (!gotTheLock) {
             }
         });
 
+        // Get app version
+        ipcMain.handle('GET_APP_VERSION', () => {
+            return app.getVersion();
+        });
+
         // Quit application
         ipcMain.on('app-quit', () => {
             app.quit();

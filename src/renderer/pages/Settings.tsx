@@ -61,6 +61,23 @@ const Settings: React.FC<SettingsProps> = memo(({
     const [saveStatus, setSaveStatus] = useState<{ [key: string]: 'idle' | 'saving' | 'saved' | 'error' }>({});
     const [showQuitModal, setShowQuitModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [appVersion, setAppVersion] = useState('1.0.0');
+
+    // Fetch app version on mount
+    useEffect(() => {
+        const fetchVersion = async () => {
+            try {
+                const electronWindow = window as any;
+                if (electronWindow.ipcRenderer?.getAppVersion) {
+                    const version = await electronWindow.ipcRenderer.getAppVersion();
+                    setAppVersion(version);
+                }
+            } catch (err) {
+                console.error('Failed to get app version:', err);
+            }
+        };
+        fetchVersion();
+    }, []);
 
     // Key bindings state
     const [keyBindings, setKeyBindings] = useState<KeyBinding[]>(() => {
@@ -606,7 +623,7 @@ const Settings: React.FC<SettingsProps> = memo(({
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18.36 6.64a9 9 0 11-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg>
                         <span>Quit App</span>
                     </button>
-                    <span className="version">v1.0.0</span>
+                    <span className="version">v{appVersion}</span>
                 </div>
             </div>
             <div className="settings-main">
