@@ -110,6 +110,31 @@
     color: #ffffff;
     transition: all 0.3s ease;
     font-family: 'Inter', sans-serif;
+    width: 100%;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Ensure all input types look consistent */
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="text"] {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #333333;
+    border-radius: 0;
+    padding: 12px 0;
+    font-size: 16px;
+    color: #ffffff;
+    transition: all 0.3s ease;
+    font-family: 'Inter', sans-serif;
+    width: 100%;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 .form-group input:focus {
@@ -119,6 +144,17 @@
 
 .form-group input::placeholder {
     color: #444444;
+}
+
+/* Fix browser autofill styling */
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus,
+.form-group input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #000000 inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ffffff;
+    transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Auth Button */

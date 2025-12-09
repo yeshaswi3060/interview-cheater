@@ -11,6 +11,7 @@ interface SettingsProps {
     onBack: () => void;
     onLogout: () => void;
     onUpdateProfile: (profile: any) => void;
+    onShowTutorial?: () => void;
 }
 
 type SettingsSection = 'keybindings' | 'resume' | 'assistant' | 'profile' | 'appearance';
@@ -55,7 +56,8 @@ const Settings: React.FC<SettingsProps> = memo(({
     userProfile,
     onBack,
     onLogout,
-    onUpdateProfile
+    onUpdateProfile,
+    onShowTutorial
 }) => {
     const [activeSection, setActiveSection] = useState<SettingsSection>('keybindings');
     const [saveStatus, setSaveStatus] = useState<{ [key: string]: 'idle' | 'saving' | 'saved' | 'error' }>({});
@@ -619,6 +621,12 @@ const Settings: React.FC<SettingsProps> = memo(({
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16,17 21,12 16,7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                         <span>Logout</span>
                     </button>
+                    {onShowTutorial && (
+                        <button className="tutorial-btn" onClick={onShowTutorial}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                            <span>View Tutorial</span>
+                        </button>
+                    )}
                     <button className="quit-btn" onClick={() => setShowQuitModal(true)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18.36 6.64a9 9 0 11-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg>
                         <span>Quit App</span>

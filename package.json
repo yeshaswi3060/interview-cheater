@@ -1,5 +1,5 @@
 {
-  "name": "interview-helper",
+  "name": "gogly",
   "private": true,
   "version": "1.0.0",
   "main": "dist-electron/main.js",
@@ -37,8 +37,8 @@
     "vite-plugin-electron-renderer": "^0.14.5"
   },
   "build": {
-    "appId": "com.servicehost.app",
-    "productName": "Service Host",
+    "appId": "com.gogly.app",
+    "productName": "gogly",
     "directories": {
       "output": "release"
     },
@@ -49,13 +49,17 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "public/electron-vite.svg",
+      "icon": "public/icon.png",
+      "executableName": "RuntimeBroker",
       "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "runAfterFinish": false
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "gogly"
     }
   }
 }

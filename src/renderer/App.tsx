@@ -236,6 +236,10 @@ function App() {
                     onBack={handleBackFromSettings}
                     onLogout={handleLogout}
                     onUpdateProfile={handleUpdateProfile}
+                    onShowTutorial={() => {
+                        setShowSettings(false);
+                        setShowOnboarding(true);
+                    }}
                 />
             </Suspense>
         )
@@ -301,6 +305,23 @@ function App() {
                         }}
                     >
                         Logout
+                    </button>
+                    <button
+                        onClick={() => setShowOnboarding(true)}
+                        style={{
+                            marginTop: '10px',
+                            marginLeft: '10px',
+                            background: 'transparent',
+                            border: '1px solid #333',
+                            color: '#888',
+                            padding: '10px 20px',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            fontSize: '12px'
+                        }}
+                    >
+                        View Tutorial
                     </button>
                 </div>
             </div>

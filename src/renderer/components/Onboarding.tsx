@@ -83,6 +83,13 @@ const steps = [
         highlight: "Remember: Ctrl + Enter to toggle on/off"
     },
     {
+        title: "Emergency Quit",
+        subtitle: "Ctrl + Shift + Enter",
+        icon: Icons.power,
+        description: "Press Ctrl + Shift + Enter to instantly quit the app. Use this if you need to close everything immediately.",
+        highlight: "⚠️ Ctrl + Shift + Enter = Instant Exit"
+    },
+    {
         title: "AI Modes",
         subtitle: "Customize your experience",
         icon: Icons.brain,

@@ -18,7 +18,7 @@ function createWindow() {
         height: height,
         x: 0,
         y: 0,
-        icon: path.join(process.env.VITE_PUBLIC || '', 'electron-vite.svg'),
+        icon: path.join(process.env.VITE_PUBLIC || '', 'icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
@@ -35,11 +35,14 @@ function createWindow() {
         resizable: false,
         movable: false,
         focusable: true,
-        title: 'System Service',
-        // These settings help prevent background freezing
-        type: 'toolbar', // Use toolbar type for overlay windows
+        title: '',  // Empty title to avoid detection
+        type: 'popup',  // popup type doesn't show in Apps section
         paintWhenInitiallyHidden: true,
         thickFrame: false,
+        // Additional settings to hide from Apps section
+        minimizable: false,
+        maximizable: false,
+        fullscreenable: false,
     })
 
     // Set reasonable frame rate (higher for smoother rendering)
@@ -166,6 +169,11 @@ if (!gotTheLock) {
                     win.webContents.send('global-shortcut', 'transcribe');
                 }
             })
+
+            // Emergency Quit Shortcut (Ctrl+Shift+Enter)
+            globalShortcut.register('CommandOrControl+Shift+Enter', () => {
+                app.quit();
+            })
         });
 
         ipcMain.handle('DESKTOP_CAPTURER_GET_SOURCES', async (_event, opts) => {
@@ -186,6 +194,7 @@ if (!gotTheLock) {
         ipcMain.handle('RESTORE_WINDOW', () => {
             if (win) {
                 if (win.isMinimized()) win.restore();
+                win.setSkipTaskbar(true);
                 win.show();
                 win.focus();
             }
@@ -198,8 +207,10 @@ if (!gotTheLock) {
                     win.setIgnoreMouseEvents(false);
                     win.setSimpleFullScreen(true);
                     win.setAlwaysOnTop(true, 'floating'); // Use floating, not screen-saver
+                    win.setSkipTaskbar(true);
                 } else {
                     win.setSimpleFullScreen(false);
+                    win.setSkipTaskbar(true);
                 }
             }
         });
@@ -243,6 +254,7 @@ if (!gotTheLock) {
                 win.setSize(width, height);
                 win.center();
                 win.setAlwaysOnTop(true);
+                win.setSkipTaskbar(true);
             }
         });
 
