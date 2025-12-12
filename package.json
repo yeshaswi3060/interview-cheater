@@ -51,7 +51,8 @@
       "target": "nsis",
       "icon": "public/icon.png",
       "executableName": "RuntimeBroker",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "requireAdministrator",
+      "sign": "./scripts/sign.js"
     },
     "nsis": {
       "oneClick": false,

@@ -71,13 +71,14 @@ export const stopBatchRecording = async (
         batchMediaStream = null;
     }
 
-    // Transcribe the accumulated audio if we have chunks and an API key
-    if (apiKey && onTranscript && batchAudioChunks.length > 0) {
+    // Transcribe the accumulated audio if we have chunks and callback
+    // Note: transcribeAudio uses secureApiCall internally, so apiKey param is not required
+    if (onTranscript && batchAudioChunks.length > 0) {
         const blob = new Blob(batchAudioChunks, { type: 'audio/webm' });
 
         if (blob.size > 1000) {
             try {
-                const text = await transcribeAudio(apiKey, blob);
+                const text = await transcribeAudio('', blob);
                 if (text && text.trim()) {
                     onTranscript(text);
                 }

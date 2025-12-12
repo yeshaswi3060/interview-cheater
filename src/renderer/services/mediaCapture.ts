@@ -42,7 +42,13 @@ export const captureSystemAudio = async (): Promise<MediaStream> => {
             } as any
         });
 
-        // We only need the audio track
+        // We only need the audio track - IMPORTANT: Stop video tracks immediately
+        // to prevent freezing YouTube, Google Meet, and other video apps
+        const videoTracks = stream.getVideoTracks();
+        videoTracks.forEach(track => {
+            track.stop();
+        });
+
         const audioTrack = stream.getAudioTracks()[0];
         if (!audioTrack) {
             throw new Error('No audio track found in system stream');
