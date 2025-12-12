@@ -673,7 +673,7 @@ const Settings: React.FC<SettingsProps> = memo(({
                     <button className="back-button" onClick={onBack}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
                     </button>
-                    <h1>Settings</h1>
+                    <h1>Settings <span style={{ fontSize: '10px', background: '#10b981', padding: '3px 8px', borderRadius: '10px', marginLeft: '8px', fontWeight: 600 }}>🎉 v1.0.6</span></h1>
                 </div>
                 <nav className="settings-nav">
                     {navItems.map((item) => (

@@ -115,9 +115,23 @@ function createWindow() {
     })
 }
 
-// Configure auto-updater for silent auto-install
+// Configure auto-updater
 autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
+autoUpdater.allowDowngrade = false
+
+// CRITICAL: Bypass signature verification for self-signed certificates
+// Without this, electron-updater will fail to verify updates signed with self-signed certs
+autoUpdater.forceDevUpdateConfig = true
+
+// Add cache headers to avoid stale updates
+autoUpdater.requestHeaders = { 'Cache-Control': 'no-cache' }
+
+// Logging for debugging (logs to %APPDATA%/gogly/logs/)
+autoUpdater.logger = require('electron-log')
+if (autoUpdater.logger) {
+    (autoUpdater.logger as any).transports.file.level = 'info'
+}
 
 // Auto-updater event handlers
 autoUpdater.on('checking-for-update', () => {
