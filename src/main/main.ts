@@ -1,6 +1,29 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'node:path'
+import * as fs from 'fs'
+
+// Simple settings storage for update tracking
+const settingsPath = path.join(app.getPath('userData'), 'app-settings.json')
+
+function getSettings(): any {
+    try {
+        if (fs.existsSync(settingsPath)) {
+            return JSON.parse(fs.readFileSync(settingsPath, 'utf8'))
+        }
+    } catch (e) {
+        console.error('Failed to read settings:', e)
+    }
+    return {}
+}
+
+function saveSettings(settings: any) {
+    try {
+        fs.writeFileSync(settingsPath, JSON.stringify(settings))
+    } catch (e) {
+        console.error('Failed to save settings:', e)
+    }
+}
 
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
@@ -8,6 +31,12 @@ process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.
 let win: BrowserWindow | null
 
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+
+// Auto-update status tracking
+let updateStatus: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error' = 'idle'
+let updateError: string | null = null
+let downloadProgress: number = 0
+let updateVersion: string | null = null
 
 function createWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
@@ -53,6 +82,21 @@ function createWindow() {
 
     win.webContents.on('did-finish-load', () => {
         win?.webContents.send('main-process-message', (new Date).toLocaleString())
+
+        // Check if app was just updated and notify renderer
+        const settings = getSettings()
+        const currentVersion = app.getVersion()
+        if (settings.previousVersion && settings.previousVersion !== currentVersion) {
+            // App was updated, notify the renderer
+            setTimeout(() => {
+                win?.webContents.send('app-just-updated', {
+                    previousVersion: settings.previousVersion,
+                    currentVersion: currentVersion
+                })
+            }, 1500) // Delay to ensure UI is ready
+        }
+        // Save current version for next launch
+        saveSettings({ ...settings, previousVersion: currentVersion })
     })
 
     if (VITE_DEV_SERVER_URL) {
@@ -76,17 +120,61 @@ autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
 
 // Auto-updater event handlers
-autoUpdater.on('update-available', () => {
-    console.log('Update available - downloading...')
+autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for updates...')
+    updateStatus = 'checking'
+    win?.webContents.send('update-status', { status: 'checking' })
 })
 
-autoUpdater.on('update-downloaded', () => {
+autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info.version)
+    updateStatus = 'available'
+    updateVersion = info.version
+    win?.webContents.send('update-status', {
+        status: 'available',
+        version: info.version
+    })
+})
+
+autoUpdater.on('update-not-available', () => {
+    console.log('No updates available')
+    updateStatus = 'idle'
+    win?.webContents.send('update-status', { status: 'not-available' })
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+    console.log(`Download progress: ${progressObj.percent.toFixed(1)}%`)
+    updateStatus = 'downloading'
+    downloadProgress = progressObj.percent
+    win?.webContents.send('update-status', {
+        status: 'downloading',
+        progress: progressObj.percent,
+        bytesPerSecond: progressObj.bytesPerSecond,
+        transferred: progressObj.transferred,
+        total: progressObj.total
+    })
+})
+
+autoUpdater.on('update-downloaded', (info) => {
     console.log('Update downloaded - will install on next restart')
+    updateStatus = 'downloaded'
+    updateVersion = info.version
+    win?.webContents.send('update-status', {
+        status: 'downloaded',
+        version: info.version
+    })
 })
 
 autoUpdater.on('error', (err) => {
     console.error('Auto-updater error:', err)
+    updateStatus = 'error'
+    updateError = err.message
+    win?.webContents.send('update-status', {
+        status: 'error',
+        error: err.message
+    })
 })
+
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
@@ -261,6 +349,35 @@ if (!gotTheLock) {
         // Get app version
         ipcMain.handle('GET_APP_VERSION', () => {
             return app.getVersion();
+        });
+
+        // Auto-updater IPC handlers
+        ipcMain.handle('CHECK_FOR_UPDATES', async () => {
+            if (app.isPackaged) {
+                try {
+                    return await autoUpdater.checkForUpdates();
+                } catch (err: any) {
+                    console.error('Check for updates error:', err);
+                    return { error: err.message };
+                }
+            } else {
+                // In dev mode, return a mock response
+                win?.webContents.send('update-status', { status: 'dev-mode' });
+                return { devMode: true };
+            }
+        });
+
+        ipcMain.handle('QUIT_AND_INSTALL', () => {
+            autoUpdater.quitAndInstall(false, true);
+        });
+
+        ipcMain.handle('GET_UPDATE_STATUS', () => {
+            return {
+                status: updateStatus,
+                error: updateError,
+                progress: downloadProgress,
+                version: updateVersion
+            };
         });
 
         // Quit application

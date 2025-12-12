@@ -1697,3 +1697,108 @@
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
 }
+
+/* Update Button */
+.update-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 8px;
+}
+
+.update-btn svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.update-btn:hover:not(:disabled) {
+    background: rgba(100, 150, 255, 0.1);
+    border-color: rgba(100, 150, 255, 0.3);
+    color: rgba(150, 180, 255, 0.9);
+}
+
+.update-btn:hover:not(:disabled) svg {
+    opacity: 1;
+}
+
+.update-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.update-btn.loading svg {
+    animation: spin 1s linear infinite;
+}
+
+.update-btn.ready {
+    background: rgba(80, 200, 120, 0.15);
+    border-color: rgba(80, 200, 120, 0.35);
+    color: rgba(120, 220, 140, 0.95);
+}
+
+.update-btn.ready:hover {
+    background: rgba(80, 200, 120, 0.25);
+    border-color: rgba(80, 200, 120, 0.5);
+    color: #fff;
+}
+
+.update-btn.ready svg {
+    opacity: 1;
+}
+
+/* Update Success Modal */
+.update-success-modal {
+    text-align: center;
+    padding: 32px 28px;
+}
+
+.update-success-modal h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.update-success-modal p {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.update-success-modal p strong {
+    color: rgba(80, 200, 120, 0.95);
+}
+
+.update-success-modal .update-from {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 20px;
+}
+
+.modal-icon.success {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(80, 200, 120, 0.15);
+    border: 2px solid rgba(80, 200, 120, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    color: rgba(80, 200, 120, 0.9);
+}
+
+.modal-icon.success svg {
+    width: 26px;
+    height: 26px;
+}

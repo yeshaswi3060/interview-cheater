@@ -65,6 +65,19 @@ const Settings: React.FC<SettingsProps> = memo(({
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [appVersion, setAppVersion] = useState('1.0.0');
 
+    // Update state
+    const [updateStatus, setUpdateStatus] = useState<{
+        status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error' | 'not-available' | 'dev-mode';
+        progress?: number;
+        version?: string;
+        error?: string;
+    }>({ status: 'idle' });
+    const [showUpdateNotification, setShowUpdateNotification] = useState<{
+        show: boolean;
+        previousVersion?: string;
+        currentVersion?: string;
+    }>({ show: false });
+
     // Fetch app version on mount
     useEffect(() => {
         const fetchVersion = async () => {
@@ -79,6 +92,43 @@ const Settings: React.FC<SettingsProps> = memo(({
             }
         };
         fetchVersion();
+    }, []);
+
+    // Listen for update events
+    useEffect(() => {
+        const electronWindow = window as any;
+        if (!electronWindow.ipcRenderer?.onUpdateStatus) return;
+
+        const removeUpdateListener = electronWindow.ipcRenderer.onUpdateStatus((data: any) => {
+            setUpdateStatus({
+                status: data.status,
+                progress: data.progress,
+                version: data.version,
+                error: data.error
+            });
+        });
+
+        return () => {
+            if (removeUpdateListener) removeUpdateListener();
+        };
+    }, []);
+
+    // Listen for "app just updated" notification
+    useEffect(() => {
+        const electronWindow = window as any;
+        if (!electronWindow.ipcRenderer?.onAppJustUpdated) return;
+
+        const removeListener = electronWindow.ipcRenderer.onAppJustUpdated((data: any) => {
+            setShowUpdateNotification({
+                show: true,
+                previousVersion: data.previousVersion,
+                currentVersion: data.currentVersion
+            });
+        });
+
+        return () => {
+            if (removeListener) removeListener();
+        };
     }, []);
 
     // Key bindings state
@@ -363,6 +413,23 @@ const Settings: React.FC<SettingsProps> = memo(({
         }
     }, []);
 
+    // CHECK FOR UPDATES
+    const handleCheckForUpdates = useCallback(async () => {
+        const electronWindow = window as any;
+        if (electronWindow.ipcRenderer?.checkForUpdates) {
+            setUpdateStatus({ status: 'checking' });
+            await electronWindow.ipcRenderer.checkForUpdates();
+        }
+    }, []);
+
+    // INSTALL UPDATE
+    const handleInstallUpdate = useCallback(() => {
+        const electronWindow = window as any;
+        if (electronWindow.ipcRenderer?.quitAndInstall) {
+            electronWindow.ipcRenderer.quitAndInstall();
+        }
+    }, []);
+
     const showSaveStatus = (section: string, status: 'saved' | 'error') => {
         setSaveStatus(prev => ({ ...prev, [section]: status }));
         setTimeout(() => setSaveStatus(prev => ({ ...prev, [section]: 'idle' })), 2000);
@@ -627,6 +694,32 @@ const Settings: React.FC<SettingsProps> = memo(({
                             <span>View Tutorial</span>
                         </button>
                     )}
+
+                    {/* Check for Updates Button */}
+                    {updateStatus.status === 'downloaded' ? (
+                        <button className="update-btn ready" onClick={handleInstallUpdate}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7,10 12,15 17,10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                            <span>Restart to Update</span>
+                        </button>
+                    ) : (
+                        <button
+                            className={`update-btn ${updateStatus.status === 'checking' || updateStatus.status === 'downloading' ? 'loading' : ''}`}
+                            onClick={handleCheckForUpdates}
+                            disabled={updateStatus.status === 'checking' || updateStatus.status === 'downloading'}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="23,4 23,10 17,10" /><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" /></svg>
+                            <span>
+                                {updateStatus.status === 'checking' && 'Checking...'}
+                                {updateStatus.status === 'downloading' && `Downloading ${updateStatus.progress?.toFixed(0) || 0}%`}
+                                {updateStatus.status === 'available' && `Update v${updateStatus.version} available`}
+                                {updateStatus.status === 'not-available' && 'Up to date ✓'}
+                                {updateStatus.status === 'dev-mode' && 'Dev Mode'}
+                                {updateStatus.status === 'error' && 'Update Error'}
+                                {updateStatus.status === 'idle' && 'Check for Updates'}
+                            </span>
+                        </button>
+                    )}
+
                     <button className="quit-btn" onClick={() => setShowQuitModal(true)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18.36 6.64a9 9 0 11-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg>
                         <span>Quit App</span>
@@ -684,6 +777,25 @@ const Settings: React.FC<SettingsProps> = memo(({
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowQuitModal(false)}>Cancel</button>
                             <button className="btn-danger" onClick={handleQuitApp}>Quit App</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Update Notification Modal */}
+            {showUpdateNotification.show && (
+                <div className="modal-overlay" onClick={() => setShowUpdateNotification({ show: false })}>
+                    <div className="modal-content update-success-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-icon success">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22,4 12,14.01 9,11.01" /></svg>
+                        </div>
+                        <h3>🎉 gogly was updated!</h3>
+                        <p>Successfully updated to version <strong>{showUpdateNotification.currentVersion}</strong></p>
+                        {showUpdateNotification.previousVersion && (
+                            <span className="update-from">from version {showUpdateNotification.previousVersion}</span>
+                        )}
+                        <div className="modal-actions">
+                            <button className="btn-primary" onClick={() => setShowUpdateNotification({ show: false })}>Got it!</button>
                         </div>
                     </div>
                 </div>

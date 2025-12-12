@@ -28,5 +28,23 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     minimizeWindow: () => ipcRenderer.invoke('MINIMIZE_WINDOW'),
     restoreWindow: () => ipcRenderer.invoke('RESTORE_WINDOW'),
     setFullscreen: (flag: boolean) => ipcRenderer.invoke('SET_FULLSCREEN', flag),
-    getAppVersion: () => ipcRenderer.invoke('GET_APP_VERSION')
+    getAppVersion: () => ipcRenderer.invoke('GET_APP_VERSION'),
+
+    // Auto-update functions
+    checkForUpdates: () => ipcRenderer.invoke('CHECK_FOR_UPDATES'),
+    quitAndInstall: () => ipcRenderer.invoke('QUIT_AND_INSTALL'),
+    getUpdateStatus: () => ipcRenderer.invoke('GET_UPDATE_STATUS'),
+
+    // Update event listeners
+    onUpdateStatus: (callback: (data: any) => void) => {
+        const listener = (_event: any, data: any) => callback(data)
+        ipcRenderer.on('update-status', listener)
+        return () => ipcRenderer.removeListener('update-status', listener)
+    },
+    onAppJustUpdated: (callback: (data: any) => void) => {
+        const listener = (_event: any, data: any) => callback(data)
+        ipcRenderer.on('app-just-updated', listener)
+        return () => ipcRenderer.removeListener('app-just-updated', listener)
+    }
 })
+
