@@ -331,7 +331,12 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
         try {
             const modeId = currentMode?.name || 'default';
             const existingHistory = conversationsByMode[modeId] || [];
-            const prompt = `Please explain this in detail:\n\n${textToExplain}`;
+            const prompt = `You are helping someone in an interview. They captured this question/problem from the screen. Give them the EXACT answer they should speak to the interviewer. Be clear, confident, and professional. Do NOT explain how to answer - just give the answer directly.
+
+Question/Problem:
+${textToExplain}
+
+Provide the answer to speak:`;
             const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
 
             const result = await testGroqConnection('', updatedHistory);
@@ -358,7 +363,12 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
         try {
             const modeId = currentMode?.name || 'default';
             const existingHistory = conversationsByMode[modeId] || [];
-            const prompt = `Please solve this step by step, showing all work:\n\n${textToSolve}`;
+            const prompt = `You are helping someone in an interview. They captured this problem from the screen. Solve it step by step and give them the EXACT answer they should speak to the interviewer. Be clear and show your work.
+
+Problem:
+${textToSolve}
+
+Provide the solution to speak:`;
             const updatedHistory = [...existingHistory, { role: 'user', content: prompt }];
 
             const result = await testGroqConnection('', updatedHistory);
@@ -434,7 +444,7 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
                         setDetectedQuestions(prev => [
                             { id: newId, text: result.question },
                             ...prev
-                        ].slice(0, 5)); // Keep max 5 questions
+                        ].slice(0, 3)); // Keep max 3 questions
                     }
                 },
                 (error) => {

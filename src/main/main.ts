@@ -206,6 +206,11 @@ app.on('activate', () => {
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 
+// CRITICAL: Disable GPU features that cause video freezing in other apps
+// when this transparent overlay window receives mouse events
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+
 // Reduce memory usage with V8 garbage collection
 app.commandLine.appendSwitch('js-flags', '--expose-gc --max-old-space-size=256');
 
@@ -308,7 +313,7 @@ if (!gotTheLock) {
                     // For snipping: disable ignore mouse, set fullscreen
                     win.setIgnoreMouseEvents(false);
                     win.setSimpleFullScreen(true);
-                    win.setAlwaysOnTop(true, 'floating'); // Use floating, not screen-saver
+                    win.setAlwaysOnTop(true, 'pop-up-menu'); // Use pop-up-menu level for less GPU interference
                     win.setSkipTaskbar(true);
                 } else {
                     win.setSimpleFullScreen(false);
@@ -326,7 +331,7 @@ if (!gotTheLock) {
                 win.setSimpleFullScreen(false);
                 win.setPosition(0, 0);
                 win.setSize(width, height);
-                win.setAlwaysOnTop(true, 'floating'); // Use floating to not block video rendering
+                win.setAlwaysOnTop(true, 'pop-up-menu'); // Use pop-up-menu level - less GPU interference than floating
                 win.setIgnoreMouseEvents(true, { forward: true });
             }
         });

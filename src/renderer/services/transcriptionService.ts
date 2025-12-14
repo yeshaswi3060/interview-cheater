@@ -25,7 +25,17 @@ let isBatchRecording = false;
 export const startBatchRecording = async (
     onError: (error: string) => void
 ) => {
-    if (isBatchRecording) return;
+    // Clean up any previous recording first
+    if (batchMediaStream) {
+        batchMediaStream.getTracks().forEach(track => track.stop());
+        batchMediaStream = null;
+    }
+    if (batchMediaRecorder && batchMediaRecorder.state !== 'inactive') {
+        try { batchMediaRecorder.stop(); } catch (e) { }
+    }
+    batchMediaRecorder = null;
+    batchAudioChunks = [];
+    isBatchRecording = false;
 
     try {
         batchMediaStream = await captureSystemAudio();
@@ -42,9 +52,18 @@ export const startBatchRecording = async (
 
         // Record continuously in 500ms chunks
         batchMediaRecorder.start(500);
+        console.log('Batch recording started successfully');
     } catch (error: any) {
+        console.error('Batch recording error:', error);
         onError(error.message || 'Failed to start recording');
-        stopBatchRecording();
+        // Clean up on error
+        if (batchMediaStream) {
+            batchMediaStream.getTracks().forEach(track => track.stop());
+            batchMediaStream = null;
+        }
+        batchMediaRecorder = null;
+        batchAudioChunks = [];
+        isBatchRecording = false;
     }
 };
 
@@ -100,7 +119,11 @@ export const startLiveTranscription = async (
     onTranscript: (text: string) => void,
     onError: (error: string) => void
 ) => {
-    if (isRecording) return;
+    // Clean up any previous session first
+    stopLiveTranscription();
+
+    // Small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
         mediaStream = await captureSystemAudio();
@@ -115,6 +138,7 @@ export const startLiveTranscription = async (
         isSpeaking = false;
 
         startNewRecording();
+        console.log('Live transcription started for auto-detect');
 
         speechEvents.on('speaking', () => {
             isSpeaking = true;
@@ -138,6 +162,7 @@ export const startLiveTranscription = async (
         }, 5000);
 
     } catch (error: any) {
+        console.error('Live transcription error:', error);
         onError(error.message || 'Failed to start audio capture');
         stopLiveTranscription();
     }

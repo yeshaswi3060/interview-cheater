@@ -180,12 +180,28 @@ export const transcribeAudio = async (_apiKey: string, audioBlob: Blob): Promise
     });
 };
 
-// Fast question detection and extraction using smaller model for speed
+// Strict question detection for interviews - uses Groq #2 API
 export const detectQuestion = async (_apiKey: string, text: string): Promise<{ isQuestion: boolean; question: string }> => {
-    // Skip very short texts (less than 3 words)
     const cleanText = text.trim();
-    if (!cleanText || cleanText.split(/\s+/).length < 3) {
+
+    // Skip very short texts (less than 5 words) - interview questions are usually longer
+    if (!cleanText || cleanText.split(/\s+/).length < 5) {
         return { isQuestion: false, question: '' };
+    }
+
+    // Skip common filler phrases and acknowledgments that are NOT questions
+    const skipPatterns = [
+        /^(okay|ok|alright|sure|yes|no|yeah|hmm|uhh?|uh-huh|right|got it|i see|thank you|thanks|welcome|hello|hi|bye|goodbye)/i,
+        /^(let me|i will|i'm going to|we will|we're going to)/i,
+        /^(that's|that is|this is|it's|it is) (great|good|fine|nice|interesting|correct)/i,
+        /(thank you|thanks) (for|so much)/i,
+        /^(so|and|but|well|now|okay so)/i, // Sentences starting with filler words
+    ];
+
+    for (const pattern of skipPatterns) {
+        if (pattern.test(cleanText)) {
+            return { isQuestion: false, question: '' };
+        }
     }
 
     // Check rate limit before proceeding
@@ -195,7 +211,8 @@ export const detectQuestion = async (_apiKey: string, text: string): Promise<{ i
     }
 
     try {
-        return await secureApiCall('groq', async (apiKey) => {
+        // Use groq2 for question detection as per user request
+        return await secureApiCall('groq2', async (apiKey) => {
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -206,20 +223,41 @@ export const detectQuestion = async (_apiKey: string, text: string): Promise<{ i
                     messages: [
                         {
                             role: 'system',
-                            content: `You are a question detector for job interviews. Your task:
-1. If the text contains a question (ends with ? or is asking something), extract and return ONLY that question.
-2. If there is NO question, reply exactly: NO
+                            content: `You are a STRICT interview question detector. Your job is to identify ONLY genuine interview questions that require a substantive answer.
 
-Examples:
-- "So tell me about your experience with React" → "Tell me about your experience with React?"
-- "What are your strengths" → "What are your strengths?"
+RETURN "YES: [question]" ONLY if the text is:
+- A direct question asking about skills, experience, or abilities
+- A behavioral interview question (tell me about a time...)
+- A technical question requiring explanation
+- A situational/hypothetical question
+
+RETURN "NO" if the text is:
+- A statement or comment (even if it sounds like it wants a response)
+- Filler conversation, greetings, or acknowledgments
+- Instructions or next steps
+- Rhetorical questions
+- Very short or incomplete sentences
+- Questions about scheduling, logistics, or breaks
+
+Examples that ARE questions:
+- "Can you tell me about yourself" → YES: Can you tell me about yourself?
+- "What are your strengths and weaknesses" → YES: What are your strengths and weaknesses?
+- "Tell me about a time you faced a challenge" → YES: Tell me about a time you faced a challenge?
+- "How would you handle a difficult coworker" → YES: How would you handle a difficult coworker?
+
+Examples that are NOT questions (return NO):
+- "Thank you for joining us today" → NO
+- "Let me explain the next steps" → NO
+- "That's a great point" → NO
+- "So moving on to the next topic" → NO
 - "I see you worked at Google" → NO
-- "Can you explain your last project" → "Can you explain your last project?"`
+- "Can you hear me okay" → NO
+- "Let's take a short break" → NO`
                         },
                         { role: 'user', content: cleanText }
                     ],
                     model: 'llama-3.1-8b-instant',
-                    max_tokens: 100,
+                    max_tokens: 150,
                     temperature: 0
                 })
             });
@@ -231,15 +269,19 @@ Examples:
             const data = await response.json();
             const answer = data.choices[0]?.message?.content?.trim() || '';
 
-            // If answer is "NO" or very short, not a question
-            if (answer.toUpperCase() === 'NO' || answer.length < 5) {
-                return { isQuestion: false, question: '' };
+            // Parse the response
+            if (answer.toUpperCase().startsWith('YES:')) {
+                const question = answer.substring(4).trim();
+                // Ensure the extracted question is substantive (at least 4 words)
+                if (question.split(/\s+/).length >= 4) {
+                    return { isQuestion: true, question: question };
+                }
             }
 
-            // Otherwise, the answer IS the extracted question
-            return { isQuestion: true, question: answer };
+            return { isQuestion: false, question: '' };
         });
     } catch (error) {
+        console.error('Question detection error:', error);
         return { isQuestion: false, question: '' };
     }
 };
