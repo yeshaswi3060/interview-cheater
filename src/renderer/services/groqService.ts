@@ -1,5 +1,48 @@
 import { secureApiCall, checkRateLimit } from './apiSecurity';
 
+// ===== SHARED TRANSCRIPT BUFFER =====
+// Groq 2 stores live transcripts here, accessible by both AIs
+let liveTranscriptBuffer: string[] = [];
+const MAX_TRANSCRIPT_ENTRIES = 20;
+
+export const addToLiveTranscript = (text: string) => {
+    if (text && text.trim()) {
+        liveTranscriptBuffer.push(text.trim());
+        // Keep only recent entries to prevent memory issues
+        if (liveTranscriptBuffer.length > MAX_TRANSCRIPT_ENTRIES) {
+            liveTranscriptBuffer = liveTranscriptBuffer.slice(-MAX_TRANSCRIPT_ENTRIES);
+        }
+    }
+};
+
+export const getLiveTranscript = (): string => {
+    return liveTranscriptBuffer.join(' ');
+};
+
+export const clearLiveTranscript = () => {
+    liveTranscriptBuffer = [];
+};
+
+export const hasLiveTranscript = (): boolean => {
+    return liveTranscriptBuffer.length > 0;
+};
+
+// Check if query needs live context (should use Groq 2)
+export const requiresLiveContext = (query: string): boolean => {
+    const contextPatterns = [
+        /what.*(she|he|they|interviewer).*(say|said|talk|talking|ask|asked|mean|meant)/i,
+        /what.*(is|was|are|were).*(that|this|it|the question)/i,
+        /what.*(happen|happened|happening)/i,
+        /can you (repeat|summarize|summarise|recap)/i,
+        /summarize|summarise|recap|context/i,
+        /tell me.*(said|asked|mentioned)/i,
+        /last.*(question|thing|said)/i,
+        /previous.*(question|statement)/i,
+        /repeat.*(that|question)/i,
+    ];
+    return contextPatterns.some(p => p.test(query));
+};
+
 export const testGroqConnection = async (_apiKey: string, messages: Array<{ role: string, content: string }>, userProfile?: any) => {
     return secureApiCall('groq', async (apiKey) => {
         // Check for active AI assistant from Settings
@@ -21,36 +64,88 @@ export const testGroqConnection = async (_apiKey: string, messages: Array<{ role
                 // Add mode-specific response style instructions
                 const modeStyles: { [key: string]: string } = {
                     'interview': `\n\nRESPONSE STYLE - INTERVIEW MODE:
-- Keep answers SHORT and CRISP (2-4 sentences for simple questions)
-- Be professional, confident, and direct
-- No filler words like "Sure" or "Here's the answer"
-- Use bullet points for longer answers
-- Sound like a confident job candidate`,
+You are helping someone answer interview questions IN REAL-TIME. You must sound like the interviewee themselves.
+
+CRITICAL RULES:
+- Respond in FIRST PERSON as if YOU are the candidate ("I have experience in...", "In my previous role, I...")
+- Be confident, articulate, and professional
+- NO phrases like "Here's a good answer" or "You could say" - respond AS the candidate directly
+- Never start with "Sure", "Certainly", "Of course" or similar filler
+
+ANSWER STRUCTURE:
+- For simple questions: 3-5 sentences, direct and impactful
+- For behavioral questions: Use STAR method (Situation → Task → Action → Result) in 4-6 sentences
+- For technical questions: Give a clear, accurate answer with a brief example if helpful
+- For "tell me about yourself": 4-5 sentences covering background, key skills, and career goals
+
+TONE:
+- Confident but not arrogant
+- Specific with real examples (use generic but realistic details)
+- Enthusiastic about the opportunity
+- Professional vocabulary
+
+FORMATTING:
+- Keep responses concise - interviewers appreciate brevity
+- No bullet points unless listing 3+ technical skills
+- Natural speaking style that flows well when read aloud`,
 
                     'study': `\n\nRESPONSE STYLE - STUDY MODE:
-- Provide DETAILED explanations with examples
-- Break down complex concepts step-by-step
-- Use analogies to make things easier
-- Include relevant examples
-- Be thorough and educational`,
+You are a knowledgeable tutor helping a student TRULY UNDERSTAND concepts.
+
+CRITICAL FOR MATH & SCIENCE:
+- ALWAYS show step-by-step working for calculations
+- VERIFY your arithmetic - double check each calculation
+- For math problems: State the approach, show each step clearly, box/highlight the final answer
+- For physics/chemistry: Include units in every step, verify dimensional consistency
+- If a calculation is complex, break it into smaller parts
+- Use $ for inline math and $$ for block equations when helpful
+
+EXPLANATION APPROACH:
+- Start with the CORE concept in simple terms
+- Build up complexity gradually
+- Use analogies and real-world examples
+- Anticipate common misconceptions and address them
+- Connect to related concepts the student might know
+
+ANSWER STRUCTURE:
+1. **Quick Answer**: The direct answer first
+2. **Explanation**: Why this is the answer, step by step
+3. **Example**: A concrete example or application
+4. **Key Takeaway**: What to remember
+
+ACCURACY REQUIREMENTS:
+- For numerical answers: ALWAYS verify by working backwards or using an alternative method
+- For science: Cite principles/laws being applied
+- For definitions: Be precise and complete
+- Admit uncertainty if a topic is ambiguous
+
+FORMATTING:
+- Use headers for different sections
+- Use bullet points for lists
+- Use **bold** for key terms
+- Use code blocks for formulas or technical notation`,
 
                     'meeting': `\n\nRESPONSE STYLE - MEETING MODE:
 - Be professional and business-focused
 - Provide clear, actionable insights
 - Summarize key points concisely
-- Suggest next steps when appropriate`,
+- Suggest next steps when appropriate
+- Use professional business language`,
 
                     'coding': `\n\nRESPONSE STYLE - CODING MODE:
-- Provide working code examples with proper formatting
-- Explain the logic and approach
-- Mention edge cases and best practices
-- Use fenced code blocks with language tags`,
+- Provide working, tested code examples with proper formatting
+- Explain the logic and approach before the code
+- Mention edge cases, error handling, and best practices
+- Use fenced code blocks with correct language tags
+- Include comments in code for clarity
+- If multiple approaches exist, briefly mention alternatives`,
 
                     'creative': `\n\nRESPONSE STYLE - CREATIVE MODE:
 - Be witty, fun, and imaginative
 - Think outside the box
-- Use engaging language
-- Be entertaining while helpful`,
+- Use engaging, vivid language
+- Be entertaining while still being helpful
+- Add personality to your responses`,
                 };
 
                 if (modeStyles[activeMode]) {
@@ -66,23 +161,32 @@ export const testGroqConnection = async (_apiKey: string, messages: Array<{ role
 
         // Fall back to default if no custom assistant
         if (!systemContent) {
-            systemContent = `You are an AI assistant.
+            systemContent = `You are an intelligent AI assistant.
 
 FORMATTING:
-- Use proper Markdown formatting
-- For code, use fenced code blocks with language
+- Use proper Markdown formatting for clarity
+- For code, use fenced code blocks with the correct language tag
 - Use **bold** for emphasis and bullet points for lists
 - For math expressions, use LaTeX notation wrapped in $ for inline and $$ for block equations
 
-MATH & CALCULATIONS:
-- For any math problem, ALWAYS show step-by-step working
-- Double-check all arithmetic calculations before answering
-- Verify your final answer by working backwards
-- For equations, simplify step by step and state the final answer clearly
+MATH & SCIENCE ACCURACY (CRITICAL):
+- For ANY math problem, ALWAYS show step-by-step working
+- Double-check and VERIFY all arithmetic calculations before answering
+- Work backwards to confirm your final answer is correct
+- For equations, simplify step by step and clearly state the final answer
+- For physics/chemistry: Always include units and verify dimensional consistency
+- If you're uncertain about a calculation, state it and show your reasoning
+
+SCIENCE & TECHNICAL TOPICS:
+- Be precise and accurate with scientific facts
+- Cite the principles or laws being applied
+- Use proper terminology
+- If something is debated or uncertain in science, acknowledge it
 
 RESPONSE STYLE:
-- Be helpful, clear, and concise
-- Provide direct answers`;
+- Be helpful, clear, and accurate above all
+- Provide direct answers first, then explanations
+- Anticipate follow-up questions and address them proactively`;
 
             if (resumeText) {
                 systemContent += `\n\nUser's Background:\n${resumeText}`;
@@ -288,3 +392,89 @@ Examples that are NOT questions (return NO):
 
 // Export rate limit check for UI components
 export { checkRateLimit, getRateLimitStatus } from './apiSecurity';
+
+// ===== SMART AI ROUTING =====
+// Routes queries to the appropriate AI based on context needs
+
+// Groq 2 context response - for questions about live transcript
+const askGroq2AboutContext = async (query: string): Promise<string> => {
+    const transcript = getLiveTranscript();
+
+    if (!transcript) {
+        return "I haven't heard anything yet. Press the play button to start listening to the interview.";
+    }
+
+    return secureApiCall('groq2', async (apiKey) => {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a real-time interview assistant. You have been listening to the interview and have access to the live transcript. 
+                        
+Your job is to help the user understand what's being discussed in the interview.
+
+LIVE TRANSCRIPT (what you've heard so far):
+"${transcript}"
+
+Respond naturally and helpfully. Be concise but informative.`
+                    },
+                    { role: 'user', content: query }
+                ],
+                model: 'llama-3.1-8b-instant',
+                max_tokens: 500,
+                temperature: 0.3
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Failed to get context response');
+        }
+
+        const data = await response.json();
+        return data.choices[0]?.message?.content || 'No response';
+    });
+};
+
+// Smart response routing - chooses the right AI based on the query
+export const getSmartResponse = async (
+    query: string,
+    conversationHistory: Array<{ role: string; content: string }>,
+    userProfile?: any
+): Promise<{ response: string; ai: 'groq1' | 'groq2' }> => {
+    const needsContext = requiresLiveContext(query);
+    const hasTranscript = hasLiveTranscript();
+
+    // If query is about context/live audio AND we have transcript -> Groq 2
+    if (needsContext && hasTranscript) {
+        console.log('Routing to Groq 2 (context query)');
+        const response = await askGroq2AboutContext(query);
+        return { response, ai: 'groq2' };
+    }
+
+    // Otherwise -> Groq 1 (with transcript context if available)
+    console.log('Routing to Groq 1 (interview answer)');
+
+    // Enhance the query with transcript context for Groq 1
+    let enhancedHistory = [...conversationHistory];
+    if (hasTranscript) {
+        const transcript = getLiveTranscript();
+        // Add context as a system-like message
+        enhancedHistory = [
+            {
+                role: 'user',
+                content: `[CONTEXT: The interviewer has been saying: "${transcript}"]`
+            },
+            ...conversationHistory
+        ];
+    }
+
+    const response = await testGroqConnection('', enhancedHistory, userProfile);
+    return { response, ai: 'groq1' };
+};

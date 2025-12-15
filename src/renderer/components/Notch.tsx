@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import '../styles/Notch.css';
-import { testGroqConnection, getActiveAssistant, getAllAssistants, setActiveAssistant, detectQuestion } from '../services/groqService';
+import { testGroqConnection, getActiveAssistant, getAllAssistants, setActiveAssistant, detectQuestion, addToLiveTranscript, getSmartResponse, clearLiveTranscript } from '../services/groqService';
 import { extractTextFromImage } from '../services/ocrService';
 import { captureScreen } from '../services/mediaCapture';
 import { startLiveTranscription, stopLiveTranscription } from '../services/transcriptionService';
@@ -22,6 +22,7 @@ interface ResponseItem {
     id: number;
     content: string;
     isAnimating: boolean;
+    ai?: 'groq1' | 'groq2'; // Track which AI responded
 }
 
 interface TranscriptItem {
@@ -165,6 +166,9 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
     const autoDetectRef = useRef<() => void>(() => { });
     const questionIdRef = useRef(0);
 
+    // Track which AI is responding (for badge display)
+    const [currentRespondingAI, setCurrentRespondingAI] = useState<'groq1' | 'groq2' | null>(null);
+
     const inputRef = useRef<HTMLInputElement>(null);
     const responseIdRef = useRef(0);
     const transcriptIdRef = useRef(0);
@@ -228,13 +232,14 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
             if (currentResponse) {
                 const newId = ++responseIdRef.current;
                 setResponses(prev => [
-                    { id: newId, content: currentResponse, isAnimating: false },
+                    { id: newId, content: currentResponse, isAnimating: false, ai: currentRespondingAI || undefined },
                     ...prev
                 ]);
             }
 
             setLoading(true);
             setCurrentResponse(null);
+            setCurrentRespondingAI(null);
             const userQuery = query;
             setQuery('');
 
@@ -248,9 +253,10 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
                 // Add user message to history
                 const updatedHistory = [...existingHistory, { role: 'user', content: userQuery }];
 
-                // Send full history to Groq
-                const result = await testGroqConnection('', updatedHistory);
+                // Use smart routing - routes to Groq 2 for context queries, Groq 1 for interview answers
+                const { response: result, ai } = await getSmartResponse(userQuery, updatedHistory);
                 setCurrentResponse(result);
+                setCurrentRespondingAI(ai);
 
                 // Save updated history with assistant response
                 setConversationsByMode(prev => ({
@@ -259,6 +265,7 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
                 }));
             } catch (err: any) {
                 setCurrentResponse(`Error: ${err.message}`);
+                setCurrentRespondingAI(null);
             } finally {
                 setLoading(false);
             }
@@ -266,7 +273,7 @@ const Notch: React.FC<NotchProps> = memo(({ onExit, onSettings }) => {
             setCurrentResponse(null);
             setOcrText(null);
         }
-    }, [query, currentResponse, currentMode, conversationsByMode]);
+    }, [query, currentResponse, currentMode, conversationsByMode, currentRespondingAI]);
 
     const handleStartSnipping = useCallback(async () => {
         try {
@@ -426,14 +433,20 @@ Provide the solution to speak:`;
             stopLiveTranscription();
             setAutoDetectEnabled(false);
             setDetectedQuestions([]);
+            clearLiveTranscript(); // Clear the shared transcript buffer
         } else {
             // Start auto-detect (background listening)
             setAutoDetectEnabled(true);
+            clearLiveTranscript(); // Start fresh
             console.log('Auto-detect started with GROQ #2 API');
             startLiveTranscription(
                 '', // API key managed internally
                 async (text) => {
                     console.log('Transcription received:', text);
+
+                    // Store transcript in shared buffer for both AIs
+                    addToLiveTranscript(text);
+
                     // Analyze if this is a question
                     const result = await detectQuestion('', text);
                     console.log('Question analysis result:', result);
@@ -648,6 +661,12 @@ Provide the best answer:`;
                             onMouseLeave={handleMouseLeave}
                         >
                             <button className="response-close" onClick={() => removeResponse(resp.id)}>×</button>
+                            {/* AI Badge for stacked responses */}
+                            {resp.ai && (
+                                <div className={`ai-badge small ${resp.ai}`}>
+                                    {resp.ai === 'groq1' ? '🔵' : '🟢'}
+                                </div>
+                            )}
                             <div className="stacked-response-content markdown-body">
                                 <MarkdownContent content={resp.content} />
                             </div>
@@ -719,6 +738,12 @@ Provide the best answer:`;
                         onMouseLeave={() => { handleMouseLeave(); setIsHoveringResponse(false); }}
                     >
                         <button className="response-close" onClick={() => { clearCurrentResponse(); handleMouseLeave(); }}>×</button>
+                        {/* AI Badge */}
+                        {currentRespondingAI && (
+                            <div className={`ai-badge ${currentRespondingAI}`}>
+                                {currentRespondingAI === 'groq1' ? '🔵' : '🟢'}
+                            </div>
+                        )}
                         {loading && !currentResponse ? (
                             <div className="notch-loading">
                                 <div className="notch-spinner"></div>

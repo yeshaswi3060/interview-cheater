@@ -2,9 +2,11 @@ import React, { useState, useCallback, useEffect, memo } from 'react';
 import '../styles/Settings.css';
 import { testGroqConnection } from '../services/groqService';
 import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore - worker import
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Set PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Set PDF.js worker - use imported worker URL for Vite/Electron compatibility
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 interface SettingsProps {
     userProfile: any;
@@ -32,11 +34,11 @@ interface AIAssistant {
 }
 
 const PRESET_MODES = [
-    { id: 'interview', name: 'Interview', icon: '💼', prompt: 'You are a professional interview coach. Provide clear, confident answers. Be concise and professional. Help with behavioral and technical interview questions.' },
-    { id: 'study', name: 'Study', icon: '📚', prompt: 'You are a helpful study assistant. Explain concepts clearly with examples. Be patient and educational. Help understand difficult topics.' },
-    { id: 'meeting', name: 'Meeting', icon: '🎯', prompt: 'You are a meeting assistant. Provide professional insights, summarize points, and help with presentations. Be business-focused.' },
-    { id: 'coding', name: 'Coding', icon: '💻', prompt: 'You are a programming assistant. Help with code, debug issues, explain technical concepts. Be precise and provide working code examples.' },
-    { id: 'creative', name: 'Creative', icon: '✨', prompt: 'You are a creative and fun assistant. Be witty, engaging, and imaginative while still being helpful.' },
+    { id: 'interview', name: 'Interview', icon: '💼', prompt: 'You are a professional interview coach helping candidates give excellent interview answers. Respond as if you ARE the candidate - always in first person. Use the STAR method for behavioral questions. Be confident, articulate, and professional. Keep answers concise but impactful. Never use filler phrases.' },
+    { id: 'study', name: 'Study', icon: '📚', prompt: 'You are an expert tutor helping students truly understand concepts. For math and science, ALWAYS show step-by-step working and verify your calculations. Explain concepts clearly with examples and analogies. Be thorough, accurate, and educational. Double-check all numerical answers.' },
+    { id: 'meeting', name: 'Meeting', icon: '🎯', prompt: 'You are a meeting assistant. Provide professional insights, summarize key points, and help with presentations. Be business-focused and action-oriented. Suggest next steps when appropriate.' },
+    { id: 'coding', name: 'Coding', icon: '💻', prompt: 'You are an expert programming assistant. Help with code, debug issues, and explain technical concepts. Provide working, well-commented code examples. Mention edge cases and best practices. Be precise and thorough.' },
+    { id: 'creative', name: 'Creative', icon: '✨', prompt: 'You are a creative and fun assistant. Be witty, engaging, and imaginative. Think outside the box while still being helpful. Add personality and flair to your responses.' },
 ];
 
 const Icons = {
@@ -248,20 +250,52 @@ const Settings: React.FC<SettingsProps> = memo(({
 
     // PDF TEXT EXTRACTION
     const extractTextFromPDF = async (file: File): Promise<string> => {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+            let fullText = '';
 
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items
-                .map((item: any) => item.str)
-                .join(' ');
-            fullText += pageText + '\n\n';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+
+                // Better text reconstruction - preserve line structure
+                let lastY: number | null = null;
+                let pageText = '';
+
+                for (const item of textContent.items) {
+                    const textItem = item as any;
+                    if (!textItem.str) continue;
+
+                    // Check if this is a new line (Y position changed significantly)
+                    if (lastY !== null && Math.abs(textItem.transform[5] - lastY) > 5) {
+                        pageText += '\n';
+                    } else if (lastY !== null) {
+                        pageText += ' ';
+                    }
+
+                    pageText += textItem.str;
+                    lastY = textItem.transform[5];
+                }
+
+                fullText += pageText.trim() + '\n\n';
+            }
+
+            const cleanedText = fullText
+                .replace(/\n{3,}/g, '\n\n')  // Remove excessive newlines
+                .replace(/  +/g, ' ')         // Remove double spaces
+                .trim();
+
+            if (!cleanedText || cleanedText.length < 10) {
+                throw new Error('PDF appears to be empty or image-based');
+            }
+
+            return cleanedText;
+        } catch (error: any) {
+            console.error('PDF extraction failed:', error);
+            throw new Error(error.message || 'Failed to extract text from PDF');
         }
-
-        return fullText.trim();
     };
 
     // RESUME UPLOAD
@@ -280,8 +314,13 @@ const Settings: React.FC<SettingsProps> = memo(({
                 setResumeText(text);
                 localStorage.setItem('resumeText', text);
                 showSaveStatus('resume', 'saved');
-            } catch (err) {
-                setPdfError('Could not read PDF. Please paste text manually.');
+            } catch (err: any) {
+                const errorMsg = err.message || 'Unknown error';
+                if (errorMsg.includes('image-based') || errorMsg.includes('empty')) {
+                    setPdfError('This PDF appears to be image-based or scanned. Please copy and paste the text manually.');
+                } else {
+                    setPdfError(`Could not read PDF: ${errorMsg}. Please paste text manually.`);
+                }
                 console.error('PDF extraction error:', err);
             } finally {
                 setPdfLoading(false);

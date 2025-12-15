@@ -27,5 +27,19 @@ export default defineConfig({
         watch: {
             ignored: ['**/release/**', '**/dist-electron/**']
         }
+    },
+    // PDF.js worker needs special handling
+    optimizeDeps: {
+        include: ['pdfjs-dist'],
+    },
+    build: {
+        rollupOptions: {
+            // Ensure pdf.worker is handled correctly
+            output: {
+                manualChunks: {
+                    pdfjs: ['pdfjs-dist']
+                }
+            }
+        }
     }
 })

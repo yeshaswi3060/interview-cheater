@@ -851,3 +851,34 @@ body,
     background: rgba(255, 60, 60, 0.5);
     color: #fff;
 }
+
+/* AI Badge - Shows which AI responded */
+.ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    animation: fadeIn 0.2s ease;
+}
+
+.ai-badge.groq1 {
+    background: rgba(59, 130, 246, 0.2);
+    color: rgba(147, 197, 253, 0.95);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.ai-badge.groq2 {
+    background: rgba(34, 197, 94, 0.2);
+    color: rgba(134, 239, 172, 0.95);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.ai-badge.small {
+    font-size: 9px;
+    padding: 2px 6px;
+    margin-bottom: 6px;
+}
